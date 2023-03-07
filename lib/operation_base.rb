@@ -5,9 +5,9 @@ require 'fileutils'
 require 'json'
 require_relative 'mddo_rest_api_client'
 
-module LinkdownSimulation
-  # scenario base class
-  class ScenarioBase
+module ModelConductor
+  # common operation
+  class OperationBase
     def initialize(logger)
       @logger = logger
       @rest_api = MddoRestApiClient.new(logger)

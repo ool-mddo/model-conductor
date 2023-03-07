@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative 'scenario_base'
+require_relative 'operation_base'
 
-module LinkdownSimulation
+module ModelConductor
   # generate topology
-  class TopologyGenerator < ScenarioBase
+  class TopologyGenerator < OperationBase
     # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
 
     # @param [String] model_info_list list of model-info (List of physical snapshot info: origin data)
@@ -26,18 +26,21 @@ module LinkdownSimulation
       model_info_list.each do |model_info|
         network = model_info['network']
         snapshot = model_info['snapshot']
-        @logger.debug "Target: #{network}/#{snapshot}"
 
-        # if -s (--snapshot) have logical snapshot name,
-        # then snapshot_dict must has physical snapshot that correspond the logical one
-        next if options.key?('snapshot') && !options['snapshot'].start_with?(snapshot)
+        # model info is target (physical) snapshot?
+        is_target = target_by_name?(network, snapshot, options)
+        @logger.debug "Target: #{network}/#{snapshot}, skip? #{!is_target}"
+        next unless is_target
 
         @logger.debug "Add physical snapshot info of #{snapshot} to #{network}"
         snapshot_dict[network] = { physical: [], logical: [] } unless snapshot_dict.keys.include?(network)
         # set physical snapshot info of the network
         snapshot_dict[network][:physical].push(model_info)
 
-        next if options.key?('phy_ss_only') && options['phy_ss_only']
+        # requested logical snapshot? (linkdown topology simulation)
+        only_physical_ss = option_phy_ss_only?(options)
+        @logger.debug "Physical snapshot only? #{only_physical_ss}"
+        next if only_physical_ss
 
         @logger.debug "Add logical snapshot info of #{snapshot} to #{network}"
         snapshot_patterns = generate_snapshot_patterns(network, snapshot, options)
@@ -85,6 +88,24 @@ module LinkdownSimulation
     end
 
     private
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @param [Hash] options Options
+    # @return [Boolean] True if the network/snapshot is specified one with options
+    def target_by_name?(network, snapshot, options)
+      return true if options.key?('network') && network == options['network']
+
+      # if -s (--snapshot) have logical snapshot name,
+      # then snapshot_dict must has physical snapshot that correspond the logical one
+      options.key?('snapshot') && options['snapshot'].start_with?(snapshot)
+    end
+
+    # @param [Hash] options Options
+    # @return [Boolean] True if requested physical snapshot only
+    def option_phy_ss_only?(options)
+      options.key?('phy_ss_only') && options['phy_ss_only']
+    end
 
     # @param [Hash] snapshot_data Snapshot metadata (model_info or snapshot_pattern elements)
     # @return [Boolean] True if the snapshot is logical one
@@ -145,6 +166,5 @@ module LinkdownSimulation
       @rest_api.post(write_url, { topology_data: diff_topology_data[:topology_data] })
     end
     # rubocop:enable Metrics/MethodLength
-
   end
 end

@@ -15,14 +15,6 @@ class TopologyConductorRestApi < Grape::API
     end
   end
 
-  get 'check' do
-    {
-      method: 'GET',
-      path: '/check',
-      data: {}
-    }
-  end
-
   namespace 'model-conductor' do
     desc 'Post (generate and register) topology data from configs'
     params do
@@ -33,9 +25,9 @@ class TopologyConductorRestApi < Grape::API
     end
     # receive model_info
     post 'generate-topology' do
-      logger.debug "[model-conductor/generate-topology]  params: #{params}"
+      logger.debug "[model-conductor/generate-topology] params: #{params}"
       # scenario
-      topology_generator = LinkdownSimulation::TopologyGenerator.new(logger)
+      topology_generator = ModelConductor::TopologyGenerator.new(logger)
       snapshot_dict = topology_generator.generate_snapshot_dict(params['model_info'], params)
       netoviz_index_data = topology_generator.convert_query_to_topology(snapshot_dict)
       topology_generator.save_netoviz_index(netoviz_index_data)
