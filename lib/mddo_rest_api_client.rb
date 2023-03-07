@@ -20,13 +20,14 @@ module ModelConductor
     # @param [Hash] data Data to post
     # @return [HTTP::Message,nil] Reply
     def post(api_path, data = {})
-      header = { 'Content-Type' => 'application/json' }
-      body = JSON.generate(data)
+      url = dispatch_url(api_path)
+
       str_limit = 80
       data_str = data.to_s.length < str_limit ? data.to_s : "#{data.to_s[0, str_limit - 3]}..."
-      api_host = api_path =~ %r{^/?topologies/*} ? NETOMOX_EXP_HOST : BATFISH_WRAPPER_HOST
-      url = "http://#{api_host}/#{api_path}"
       @logger.info "POST: #{url}, data=#{data_str}"
+
+      header = { 'Content-Type' => 'application/json' }
+      body = JSON.generate(data)
       response = @http_client.post(url, body:, header:)
       warn "# [ERROR] #{response.status} < POST #{url}, data=#{data_str}" if error_response?(response)
       response
@@ -36,7 +37,7 @@ module ModelConductor
     # @param [Hash] param GET parameter
     # @return [HTTP::Message,nil] Reply
     def fetch(api_path, param = {})
-      url = "http://#{API_HOST}/#{api_path}"
+      url = dispatch_url(api_path)
       @logger.info "GET: #{url}, param=#{param}"
       response = param.empty? ? @http_client.get(url) : @http_client.get(url, query: param)
       warn "# [ERROR] #{response.status} < GET #{url}" if error_response?(response)
@@ -44,6 +45,13 @@ module ModelConductor
     end
 
     private
+
+    # @param [String] api_path PATH of REST API
+    # @return [String] url
+    def dispatch_url(api_path)
+      api_host = api_path =~ %r{^/?topologies/*} ? NETOMOX_EXP_HOST : BATFISH_WRAPPER_HOST
+      "http://#{api_host}/#{api_path}"
+    end
 
     # @param [HTTP::Message] response HTTP response
     # @return [Boolean]
