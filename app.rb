@@ -19,8 +19,6 @@ class TopologyConductorRestApi < Grape::API
     desc 'Post (generate and register) topology data from configs'
     params do
       requires :model_info, type: Array, desc: 'List of model-info'
-      optional :network, type: String, desc: 'Target network name'
-      optional :snapshot, type: String, desc: 'Target snapshot name'
       optional :phy_ss_only, type: Boolean, desc: 'Physical snapshot only'
       optional :off_node, type: String, desc: 'Node name to down'
       optional :off_intf_re, type: String, desc: 'Interface name to down (regexp)'

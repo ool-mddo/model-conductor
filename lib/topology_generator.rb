@@ -10,12 +10,14 @@ module ModelConductor
     # @param [String] model_info_list list of model-info (List of physical snapshot info: origin data)
     # @param [Hash] options Options
     # @return [Hash] logical/physical snapshot info
+    #
     # snapshot_dict = {
-    #   <network name> => {
-    #     physical: [ (model_info),... ],
-    #     logical: [ (snapshot_pattern),... ]
-    #   }
+    #   <network name> => [
+    #     { physical: model_info, logical: [snapshot_pattern, ...] },
+    #     ...
+    #   ]
     # }
+    # one physical snapshot <=> multiple logical (linkdown) snapshots
     def generate_snapshot_dict(model_info_list, options)
       @logger.info 'Generate logical snapshots: link-down patterns'
       snapshot_dict = {}
@@ -27,25 +29,21 @@ module ModelConductor
         network = model_info['network']
         snapshot = model_info['snapshot']
 
-        # model info is target (physical) snapshot?
-        is_target = target_by_name?(network, snapshot, options)
-        @logger.debug "Target: #{network}/#{snapshot}, skip? #{!is_target}"
-        next unless is_target
-
-        @logger.debug "Add physical snapshot info of #{snapshot} to #{network}"
-        snapshot_dict[network] = { physical: [], logical: [] } unless snapshot_dict.keys.include?(network)
         # set physical snapshot info of the network
-        snapshot_dict[network][:physical].push(model_info)
+        @logger.debug "Add physical snapshot info of #{snapshot} to #{network}"
+        snapshot_dict[network] = [] unless snapshot_dict.keys.include?(network)
+        snapshot_pair = { physical: model_info, logical: [] }
+        snapshot_dict[network].push(snapshot_pair)
 
         # requested logical snapshot? (linkdown topology simulation)
         only_physical_ss = option_phy_ss_only?(options)
         @logger.debug "Physical snapshot only? #{only_physical_ss}"
         next if only_physical_ss
 
+        # set logical snapshot info of the network
         @logger.debug "Add logical snapshot info of #{snapshot} to #{network}"
         snapshot_patterns = generate_snapshot_patterns(network, snapshot, options)
-        # set logical snapshot info of the network
-        snapshot_dict[network][:logical] = snapshot_patterns
+        snapshot_dict[network][-1][:logical] = snapshot_patterns
       end
 
       @logger.debug "snapshot_dict: #{snapshot_dict}"
@@ -60,13 +58,16 @@ module ModelConductor
     def convert_query_to_topology(snapshot_dict)
       @logger.debug '[convert_query_to_topology]'
       netoviz_index_data = []
-      snapshot_dict.each_pair do |network, snapshot_info|
-        %i[physical logical].each do |snapshot_type|
-          snapshot_info[snapshot_type].each do |snapshot_data|
-            process_snapshot_data(network, snapshot_type, snapshot_data)
-            datum = netoviz_index_datum(network, snapshot_type, snapshot_data)
-            netoviz_index_data.push(datum)
-          end
+      snapshot_dict.each_pair do |network, snapshot_pairs|
+        # snapshot_pairs = [{ physical: model_info, logical: [snapshot_pattern,...] }]
+        snapshot_types = snapshot_pairs.map do |snapshot_pair|
+          [{ type: :physical, data: snapshot_pair[:physical] }]
+            .concat(snapshot_pair[:logical].map { |snapshot_pattern| { type: :logical, data: snapshot_pattern }})
+        end
+        snapshot_types.flatten.each do |snapshot_type|
+          process_snapshot_data(network, snapshot_type[:type], snapshot_type[:data])
+          datum = netoviz_index_datum(network, snapshot_type[:type], snapshot_type[:data])
+          netoviz_index_data.push(datum)
         end
       end
       netoviz_index_data
@@ -83,18 +84,6 @@ module ModelConductor
     end
 
     private
-
-    # @param [String] network Network name
-    # @param [String] snapshot Snapshot name
-    # @param [Hash] options Options
-    # @return [Boolean] True if the network/snapshot is specified one with options
-    def target_by_name?(network, snapshot, options)
-      return true if options.key?('network') && network == options['network']
-
-      # if -s (--snapshot) have logical snapshot name,
-      # then snapshot_dict must has physical snapshot that correspond the logical one
-      options.key?('snapshot') && options['snapshot'].start_with?(snapshot)
-    end
 
     # @param [Hash] options Options
     # @return [Boolean] True if requested physical snapshot only
