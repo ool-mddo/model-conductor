@@ -28,6 +28,7 @@ class TopologyConductorRestApi < Grape::API
       logger.debug "[model-conductor/generate-topology] params: #{params}"
       # scenario
       topology_generator = ModelConductor::TopologyGenerator.new(logger)
+      topology_generator.delete_all_data_dir(params['model_info'])
       snapshot_dict = topology_generator.generate_snapshot_dict(params['model_info'], params)
       netoviz_index_data = topology_generator.convert_query_to_topology(snapshot_dict)
       topology_generator.save_netoviz_index(netoviz_index_data)

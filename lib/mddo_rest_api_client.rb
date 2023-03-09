@@ -17,6 +17,16 @@ module ModelConductor
     end
 
     # @param [String] api_path PATH of REST API
+    # @return [HTTP::Message,nil] Reply
+    def delete(api_path)
+      url = dispatch_url(api_path)
+      @logger.info "DELETE: #{url}"
+      response = @http_client.delete(url)
+      warn "# [ERROR] #{response.status} < GET #{url}" if error_response?(response)
+      response
+    end
+
+    # @param [String] api_path PATH of REST API
     # @param [Hash] data Data to post
     # @return [HTTP::Message,nil] Reply
     def post(api_path, data = {})

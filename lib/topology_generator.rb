@@ -3,8 +3,17 @@
 require_relative 'operation_base'
 
 module ModelConductor
+  # rubocop:disable Metrics/ClassLength
+
   # generate topology
   class TopologyGenerator < OperationBase
+    # @param [String] model_info_list list of model-info (List of physical snapshot info: origin data)
+    def delete_all_data_dir(model_info_list)
+      model_info_list.map { |model_info| model_info['network'] }
+                     .uniq
+                     .each { |network| delete_query_and_topology(network) }
+    end
+
     # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
 
     # @param [String] model_info_list list of model-info (List of physical snapshot info: origin data)
@@ -19,7 +28,9 @@ module ModelConductor
     # }
     # one physical snapshot <=> multiple logical (linkdown) snapshots
     def generate_snapshot_dict(model_info_list, options)
-      @logger.info 'Generate logical snapshots: link-down patterns'
+      api_key = 'generate_snapshot_dict'
+      @logger.info "[#{api_key}] start"
+
       snapshot_dict = {}
 
       # model_info: physical snapshot info...origination points
@@ -30,39 +41,44 @@ module ModelConductor
         snapshot = model_info['snapshot']
 
         # set physical snapshot info of the network
-        @logger.debug "Add physical snapshot info of #{snapshot} to #{network}"
+        @logger.debug "[#{api_key}] Add physical snapshot info of #{snapshot} to #{network}"
         snapshot_dict[network] = [] unless snapshot_dict.keys.include?(network)
         snapshot_pair = { physical: model_info, logical: [] }
         snapshot_dict[network].push(snapshot_pair)
 
         # requested logical snapshot? (linkdown topology simulation)
         only_physical_ss = option_phy_ss_only?(options)
-        @logger.debug "Physical snapshot only? #{only_physical_ss}"
-        next if only_physical_ss
+        @logger.debug "[#{api_key}] Physical snapshot only? #{only_physical_ss}"
+        if only_physical_ss
+          delete_snapshot_patterns(network, snapshot)
+          next
+        end
 
         # set logical snapshot info of the network
-        @logger.debug "Add logical snapshot info of #{snapshot} to #{network}"
+        @logger.debug "[#{api_key}]   Add logical snapshot info of #{snapshot} to #{network}"
         snapshot_patterns = generate_snapshot_patterns(network, snapshot, options)
         snapshot_dict[network][-1][:logical] = snapshot_patterns
       end
 
-      @logger.debug "snapshot_dict: #{snapshot_dict}"
+      @logger.debug "[#{api_key}] snapshot_dict: #{snapshot_dict}"
       snapshot_dict
     end
     # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
-    # rubocop:disable Metrics/MethodLength
+    # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
 
     # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
     # @return [Array<Hash>] netoviz index data
     def convert_query_to_topology(snapshot_dict)
-      @logger.debug '[convert_query_to_topology]'
+      api_key = 'convert_query_to_topology'
+      @logger.info "[#{api_key}] start"
+
       netoviz_index_data = []
       snapshot_dict.each_pair do |network, snapshot_pairs|
         # snapshot_pairs = [{ physical: model_info, logical: [snapshot_pattern,...] }]
         snapshot_types = snapshot_pairs.map do |snapshot_pair|
           [{ type: :physical, data: snapshot_pair[:physical] }]
-            .concat(snapshot_pair[:logical].map { |snapshot_pattern| { type: :logical, data: snapshot_pattern }})
+            .concat(snapshot_pair[:logical].map { |snapshot_pattern| { type: :logical, data: snapshot_pattern } })
         end
         snapshot_types.flatten.each do |snapshot_type|
           process_snapshot_data(network, snapshot_type[:type], snapshot_type[:data])
@@ -72,7 +88,7 @@ module ModelConductor
       end
       netoviz_index_data
     end
-    # rubocop:enable Metrics/MethodLength
+    # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
     # @param [Array<Hash>] netoviz_index_data Netoviz index data
     # @return [void]
@@ -84,6 +100,11 @@ module ModelConductor
     end
 
     private
+
+    def delete_query_and_topology(network)
+      @rest_api.delete("/queries/#{network}")
+      @rest_api.delete("/topologies/#{network}")
+    end
 
     # @param [Hash] options Options
     # @return [Boolean] True if requested physical snapshot only
@@ -112,6 +133,13 @@ module ModelConductor
         datum['label'] = snapshot_data[:description]
       end
       datum
+    end
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # return [void]
+    def delete_snapshot_patterns(network, snapshot)
+      @rest_api.delete("/configs/#{network}/#{snapshot}/snapshot_patterns")
     end
 
     # rubocop:disable Metrics/MethodLength
@@ -169,4 +197,5 @@ module ModelConductor
     end
     # rubocop:enable Metrics/MethodLength
   end
+  # rubocop:enable Metrics/ClassLength
 end
