@@ -54,6 +54,30 @@ module ModelConductor
       response
     end
 
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [Hash, nil] topology data
+    def fetch_topology_data(network, snapshot)
+      url = "/topologies/#{network}/#{snapshot}/topology"
+      response = fetch(url)
+      return nil if error_response?(response)
+
+      # NOTICE: DO NOT symbolize
+      response_data = JSON.parse(response.body, { symbolize_names: false })
+      response_data['topology_data']
+    end
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [Array<Hash>, nil] snapshot patterns
+    def fetch_snapshot_patterns(network, snapshot)
+      url = "/configs/#{network}/#{snapshot}/snapshot_patterns"
+      response = fetch(url)
+      return {} if error_response?(response)
+
+      JSON.parse(response.body, { symbolize_names: true })
+    end
+
     private
 
     # @param [String] api_path PATH of REST API
