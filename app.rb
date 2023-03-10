@@ -6,6 +6,8 @@ require 'json'
 require_relative 'lib/mddo_rest_api_client'
 require_relative 'lib/nw_subsets/disconnected_verifiable_networks'
 require_relative 'lib/nw_subsets/network_sets_diff'
+require_relative 'lib/reach_test/reach_tester'
+require_relative 'lib/reach_test/reach_result_converter'
 require_relative 'lib/topology_generator'
 
 # model-conductor REST API definition
@@ -18,6 +20,7 @@ class TopologyConductorRestApi < Grape::API
     end
   end
 
+  # rubocop:disable Metrics/BlockLength
   namespace 'model-conductor' do
     desc 'Post (generate and register) topology data from configs'
     params do
@@ -82,5 +85,27 @@ class TopologyConductorRestApi < Grape::API
         }
       end
     end
+
+    desc 'Reachability test with test-pattern'
+    params do
+      requires :snapshot_re, type: String, desc: 'Snapshot name (pattern regexp)'
+      requires :test_pattern, type: Hash, desc: 'Reachability test pattern definitions'
+    end
+    post 'reach_test' do
+      network = params[:test_pattern][:environment][:network]
+      rest_api = ModelConductor::MddoRestApiClient.new(logger)
+
+      tester = ModelConductor::ReachTester.new(rest_api, logger, params[:test_pattern])
+      reach_results = tester.exec_all_traceroute_tests(network, params[:snapshot_re])
+      converter = ModelConductor::ReachResultConverter.new(reach_results)
+      {
+        method: 'POST',
+        path: '/model-conductor/reach_test',
+        reach_results:,
+        reach_results_summary: converter.summary,
+        reach_results_summary_table: converter.full_table
+      }
+    end
   end
+  # rubocop:enable Metrics/BlockLength
 end
