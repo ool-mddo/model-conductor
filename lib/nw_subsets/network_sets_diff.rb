@@ -33,11 +33,11 @@ module ModelConductor
     #   @see Hash#[]
     def_delegators :@compared, :[]
 
-    # @param [MddoRestApiClient] rest_api
     # @param [String] network Network name
     # @param [String] orig_snapshot Origin snapshot name
     # @param [String] target_snapshot Target snapshot name
-    def initialize(rest_api, network, orig_snapshot, target_snapshot)
+    def initialize(network, orig_snapshot, target_snapshot)
+      rest_api = ModelConductor.rest_api
       @orig_ss_path = "#{network}/#{orig_snapshot}"
       @orig_topology = rest_api.fetch_topology_data(network, orig_snapshot)
       @orig_sets = disconnected_check(@orig_topology)

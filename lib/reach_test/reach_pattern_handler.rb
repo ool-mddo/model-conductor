@@ -7,13 +7,11 @@ module ModelConductor
   class ReachPatternHandler
     # rubocop:disable Metrics/MethodLength
 
-    # @param [MddoRestApiClient] rest_api
-    # @param [Logger] logger
     # @param [Hash] test_pattern_def Test pattern definition data
-    def initialize(rest_api, logger, test_pattern_def)
+    def initialize(test_pattern_def)
       super()
-      @logger = logger
-      @rest_api = rest_api
+      @logger = ModelConductor.logger
+      @rest_api = ModelConductor.rest_api
 
       @env_table = test_pattern_def['environment']
       @group_table = test_pattern_def['groups']

@@ -6,15 +6,13 @@ require_relative 'bf_trace_results'
 module ModelConductor
   # Reachability tester
   class ReachTester
-    # @param [MddoRestApiClient] rest_api
-    # @param [Logger] logger
     # @param [Hash] test_pattern_def Test pattern definition data
-    def initialize(rest_api, logger, test_pattern_def)
+    def initialize(test_pattern_def)
       super()
-      @logger = logger
-      @rest_api = rest_api
+      @logger = ModelConductor.logger
+      @rest_api = ModelConductor.rest_api
 
-      reach_ops = ReachPatternHandler.new(rest_api, logger, test_pattern_def)
+      reach_ops = ReachPatternHandler.new(test_pattern_def)
       @patterns = reach_ops.expand_patterns.reject { |pt| pt[:cases].empty? }
     end
 

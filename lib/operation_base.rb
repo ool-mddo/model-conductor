@@ -3,14 +3,13 @@
 require 'csv'
 require 'fileutils'
 require 'json'
-require_relative 'mddo_rest_api_client'
 
 module ModelConductor
   # common operation
   class OperationBase
-    def initialize(logger)
-      @logger = logger
-      @rest_api = MddoRestApiClient.new(logger)
+    def initialize
+      @logger = ModelConductor.logger
+      @rest_api = ModelConductor.rest_api
     end
 
     private
