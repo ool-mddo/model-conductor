@@ -50,7 +50,7 @@ module ModelConductor
         exit 1
       end
 
-      snapshots = @rest_api.fetch_snapshots(network, true)
+      snapshots = @rest_api.fetch_snapshots(network, simulated: true)
       return if !snapshots.nil? && snapshots.include?(snapshot)
 
       @logger.error "Snapshot:#{snapshot} is not found in network:#{network}"

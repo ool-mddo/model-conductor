@@ -87,7 +87,7 @@ module ModelConductor
     # @param [String] network Network name
     # @param [Boolean] simulated Enable to get all simulated snapshots
     # @return [Array<String>,nil] snapshots
-    def fetch_snapshots(network, simulated = false)
+    def fetch_snapshots(network, simulated: false)
       url = "/batfish/#{network}/snapshots"
       response = simulated ? fetch(url, { 'simulated' => true }) : fetch(url)
       fetch_response(response)

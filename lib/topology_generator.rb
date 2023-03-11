@@ -22,8 +22,8 @@ module ModelConductor
     #
     # snapshot_dict = {
     #   <network name> => [
-    #     { physical: model_info, logical: [snapshot_pattern, ...] },
-    #     ...
+    #     { physical: model_info, logical: [snapshot_pattern, ...] }, # for a physical snapshot
+    #     ...                                                         # it is able to own multiple physical snapshot
     #   ]
     # }
     # one physical snapshot <=> multiple logical (linkdown) snapshots
@@ -59,42 +59,36 @@ module ModelConductor
         snapshot_patterns = generate_snapshot_patterns(network, snapshot, options)
         snapshot_dict[network][-1][:logical] = snapshot_patterns
       end
-
-      @logger.debug "[#{api_key}] snapshot_dict: #{snapshot_dict}"
       snapshot_dict
     end
     # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
-    # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
-
     # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
-    # @return [Array<Hash>] netoviz index data
+    # @return [void]
     def convert_query_to_topology(snapshot_dict)
       api_key = 'convert_query_to_topology'
       @logger.info "[#{api_key}] start"
 
-      netoviz_index_data = []
-      snapshot_dict.each_pair do |network, snapshot_pairs|
-        # snapshot_pairs = [{ physical: model_info, logical: [snapshot_pattern,...] }]
-        snapshot_types = snapshot_pairs.map do |snapshot_pair|
-          [{ type: :physical, data: snapshot_pair[:physical] }]
-            .concat(snapshot_pair[:logical].map { |snapshot_pattern| { type: :logical, data: snapshot_pattern } })
-        end
-        snapshot_types.flatten.each do |snapshot_type|
+      snapshot_dict_to_types_dict(snapshot_dict).each_pair do |network, snapshot_types|
+        snapshot_types.each do |snapshot_type|
           process_snapshot_data(network, snapshot_type[:type], snapshot_type[:data])
+        end
+      end
+    end
+
+    # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
+    # @return [void]
+    def save_netoviz_index(snapshot_dict)
+      @logger.info 'Push (register) netoviz index'
+
+      netoviz_index_data = []
+      snapshot_dict_to_types_dict(snapshot_dict).each_pair do |network, snapshot_types|
+        snapshot_types.each do |snapshot_type|
           datum = netoviz_index_datum(network, snapshot_type[:type], snapshot_type[:data])
           netoviz_index_data.push(datum)
         end
       end
-      netoviz_index_data
-    end
-    # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
-    # @param [Array<Hash>] netoviz_index_data Netoviz index data
-    # @return [void]
-    def save_netoviz_index(netoviz_index_data)
-      @logger.info 'Push (register) netoviz index'
-      @logger.debug "netoviz_index_data: #{netoviz_index_data}"
       url = '/topologies/index'
       @rest_api.post(url, { index_data: netoviz_index_data })
     end
@@ -116,6 +110,33 @@ module ModelConductor
     # @return [Boolean] True if the snapshot is logical one
     def logical_snapshot?(snapshot_data)
       snapshot_data.key?(:lost_edges)
+    end
+
+    # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
+    # @return [Hash] snapshot_types_dict
+    def snapshot_dict_to_types_dict(snapshot_dict)
+      # snapshot_dict = {
+      #   <network>: [                                                    # snapshot_pairs
+      #     { physical: model_info, logical: [ snapshot_pattern, ...] },  # physical/logical pair
+      #     ...
+      #   ]
+      # }
+      # snapshot_pairs = [
+      #   { physical: model_info, logical: [snapshot_pattern, ...] }
+      #   ...
+      # ]
+      snapshot_types = snapshot_dict.map do |network, snapshot_pairs|
+        types = snapshot_pairs.map do |snapshot_pair|
+          # snapshot_pair = { physical: model_info, logical: [ snapshot_pattern, ...] }
+          [{ type: :physical, data: snapshot_pair[:physical] }]
+            .concat(snapshot_pair[:logical].map { |snapshot_pattern| { type: :logical, data: snapshot_pattern } })
+        end
+        [network, types.flatten] # key, value
+      end
+      # snapshot_types_dict = {
+      #   <network>: [ {type: physical}, {type: logical} ...]
+      # }
+      snapshot_types.to_h
     end
 
     # @param [String] network Network name

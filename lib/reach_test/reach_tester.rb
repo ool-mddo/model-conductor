@@ -22,7 +22,7 @@ module ModelConductor
     # @param [String] snapshot_re Snapshot name regexp
     # @return [Array<Hash>]
     def exec_all_traceroute_tests(network, snapshot_re)
-      snapshots = @rest_api.fetch_snapshots(network, true)
+      snapshots = @rest_api.fetch_snapshots(network, simulated: true)
       @logger.debug "[exec_all_traceroute_tests] snapshots=#{snapshots}"
       return [] if snapshots.nil?
 
