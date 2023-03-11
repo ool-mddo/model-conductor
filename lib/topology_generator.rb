@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'parallel'
 require_relative 'operation_base'
 
 module ModelConductor
@@ -28,8 +29,8 @@ module ModelConductor
     # }
     # one physical snapshot <=> multiple logical (linkdown) snapshots
     def generate_snapshot_dict(model_info_list, options)
-      api_key = 'generate_snapshot_dict'
-      @logger.info "[#{api_key}] start"
+      api_key = '[generate_snapshot_dict]'
+      @logger.info "#{api_key} start"
 
       snapshot_dict = {}
 
@@ -41,21 +42,21 @@ module ModelConductor
         snapshot = model_info['snapshot']
 
         # set physical snapshot info of the network
-        @logger.debug "[#{api_key}] Add physical snapshot info of #{snapshot} to #{network}"
+        @logger.debug "#{api_key} Add physical snapshot info of #{snapshot} to #{network}"
         snapshot_dict[network] = [] unless snapshot_dict.keys.include?(network)
         snapshot_pair = { physical: model_info, logical: [] }
         snapshot_dict[network].push(snapshot_pair)
 
         # requested logical snapshot? (linkdown topology simulation)
         only_physical_ss = option_phy_ss_only?(options)
-        @logger.debug "[#{api_key}] Physical snapshot only? #{only_physical_ss}"
+        @logger.debug "#{api_key} Physical snapshot only? #{only_physical_ss}"
         if only_physical_ss
           delete_snapshot_patterns(network, snapshot)
           next
         end
 
         # set logical snapshot info of the network
-        @logger.debug "[#{api_key}]   Add logical snapshot info of #{snapshot} to #{network}"
+        @logger.debug "#{api_key} Add logical snapshot info of #{snapshot} to #{network}"
         snapshot_patterns = generate_snapshot_patterns(network, snapshot, options)
         snapshot_dict[network][-1][:logical] = snapshot_patterns
       end
@@ -65,28 +66,37 @@ module ModelConductor
 
     # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
     # @return [void]
-    def convert_query_to_topology(snapshot_dict)
-      api_key = 'convert_query_to_topology'
-      @logger.info "[#{api_key}] start"
+    def convert_config_to_query(snapshot_dict)
+      api_key = '[convert_config_to_query]'
+      @logger.info "#{api_key} start"
 
-      snapshot_dict_to_types_dict(snapshot_dict).each_pair do |network, snapshot_types|
-        snapshot_types.each do |snapshot_type|
-          process_snapshot_data(network, snapshot_type[:type], snapshot_type[:data])
-        end
+      each_snapshot_type(snapshot_dict) do |network, snapshot_type|
+        query_batfish(network, snapshot_type[:type], snapshot_type[:data])
+      end
+    end
+
+    # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
+    # @param [Boolean] use_parallel Use parallel
+    # @return [void]
+    def convert_query_to_topology(snapshot_dict, use_parallel: false)
+      api_key = '[convert_query_to_topology]'
+      @logger.info "#{api_key} start (parallel=#{use_parallel})"
+
+      each_snapshot_type(snapshot_dict, use_parallel:) do |network, snapshot_type|
+        process_snapshot_data(network, snapshot_type[:type], snapshot_type[:data])
       end
     end
 
     # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
     # @return [void]
     def save_netoviz_index(snapshot_dict)
-      @logger.info 'Push (register) netoviz index'
+      api_key = '[save_netoviz_index]'
+      @logger.info "#{api_key} start"
 
       netoviz_index_data = []
-      snapshot_dict_to_types_dict(snapshot_dict).each_pair do |network, snapshot_types|
-        snapshot_types.each do |snapshot_type|
-          datum = netoviz_index_datum(network, snapshot_type[:type], snapshot_type[:data])
-          netoviz_index_data.push(datum)
-        end
+      each_snapshot_type(snapshot_dict) do |network, snapshot_type|
+        datum = netoviz_index_datum(network, snapshot_type[:type], snapshot_type[:data])
+        netoviz_index_data.push(datum)
       end
 
       url = '/topologies/index'
@@ -95,6 +105,25 @@ module ModelConductor
 
     private
 
+    # @param [Hash] snapshot_dict Physical and logical snapshot info for each network
+    # @param [Boolean] use_parallel Use parallel
+    # @return [void]
+    # @yield [network, snapshot_type] for each snapshot type
+    # @yieldparam [String] network network name
+    # @yieldparam [Hash] snapshot type
+    # @yieldreturn [void]
+    def each_snapshot_type(snapshot_dict, use_parallel: false)
+      snapshot_dict_to_types_dict(snapshot_dict).each_pair do |network, snapshot_types|
+        if use_parallel
+          Parallel.each(snapshot_types) { |snapshot_type| yield(network, snapshot_type) }
+        else
+          snapshot_types.each { |snapshot_type| yield(network, snapshot_type) }
+        end
+      end
+    end
+
+    # @param [String] network Network name
+    # @return [void]
     def delete_query_and_topology(network)
       @rest_api.delete("/queries/#{network}")
       @rest_api.delete("/topologies/#{network}")
@@ -171,7 +200,7 @@ module ModelConductor
     # @return [Array<Hash>] snapshot-patterns
     def generate_snapshot_patterns(network, snapshot, options)
       @logger.info "[#{network}/#{snapshot}] Generate logical snapshot"
-      # TODO: if physical_ss_only=True, removed in configs/network/snapshot/snapshot_patterns.json
+
       post_opt = {}
       if options.key?('off_node')
         post_opt[:node] = options['off_node']
@@ -188,6 +217,27 @@ module ModelConductor
     end
     # rubocop:enable Metrics/MethodLength
 
+    # @param [Symbol] snapshot_type Snapshot type (:physical or :logical)
+    # @param [Hash] snapshot_data Snapshot metadata (model_info or snapshot_pattern elements)
+    # @return [String] snapshot name
+    def snapshot_name_by_type(snapshot_type, snapshot_data)
+      snapshot_key = snapshot_type == :physical ? 'snapshot' : :target_snapshot_name
+      snapshot_data[snapshot_key]
+    end
+
+    # @param [String] network Network name
+    # @param [Symbol] snapshot_type Snapshot type (:physical or :logical)
+    # @param [Hash] snapshot_data Snapshot metadata (model_info or snapshot_pattern elements)
+    # @return [void]
+    def query_batfish(network, snapshot_type, snapshot_data)
+      snapshot = snapshot_name_by_type(snapshot_type, snapshot_data)
+      target_key = "[query_batfish] #{network}/#{snapshot}:"
+
+      @logger.info "#{target_key} Query configurations for each snapshot"
+      url = "/queries/#{network}/#{snapshot}"
+      @rest_api.post(url)
+    end
+
     # rubocop:disable Metrics/MethodLength
 
     # @param [String] network Network name
@@ -195,21 +245,16 @@ module ModelConductor
     # @param [Hash] snapshot_data Snapshot metadata (model_info or snapshot_pattern elements)
     # @return [void]
     def process_snapshot_data(network, snapshot_type, snapshot_data)
-      snapshot_key = snapshot_type == :physical ? 'snapshot' : :target_snapshot_name
-      snapshot = snapshot_data[snapshot_key]
-      target_key = "#{network}/#{snapshot}"
+      snapshot = snapshot_name_by_type(snapshot_type, snapshot_data)
+      target_key = "[process_snapshot_data] #{network}/#{snapshot}:"
 
-      @logger.info "[#{target_key}] Query configurations each snapshot and save it to file"
-      url = "/queries/#{network}/#{snapshot}"
-      @rest_api.post(url)
-
-      @logger.info "[#{target_key}] Generate topology file from query results"
+      @logger.info "#{target_key} Generate topology file from query results"
       write_url = "/topologies/#{network}/#{snapshot}"
       @rest_api.post(write_url)
 
       return unless logical_snapshot?(snapshot_data)
 
-      @logger.info "[#{target_key}] Generate diff data and write back"
+      @logger.info "#{target_key} Generate diff data and write back"
       src_snapshot = snapshot_data[:orig_snapshot_name]
       diff_url = "/topologies/#{network}/snapshot_diff/#{src_snapshot}/#{snapshot}"
       diff_response = @rest_api.fetch(diff_url)

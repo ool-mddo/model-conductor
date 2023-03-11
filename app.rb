@@ -18,6 +18,7 @@ module ModelConductor
       params do
         requires :model_info, type: Array, desc: 'List of model-info'
         optional :phy_ss_only, type: Boolean, desc: 'Physical snapshot only'
+        optional :use_parallel, type: Boolean, desc: 'Use parallel'
         optional :off_node, type: String, desc: 'Node name to down'
         optional :off_intf_re, type: String, desc: 'Interface name to down (regexp)'
       end
@@ -28,7 +29,8 @@ module ModelConductor
         topology_generator = TopologyGenerator.new
         topology_generator.delete_all_data_dir(params['model_info'])
         snapshot_dict = topology_generator.generate_snapshot_dict(params['model_info'], params)
-        topology_generator.convert_query_to_topology(snapshot_dict)
+        topology_generator.convert_config_to_query(snapshot_dict)
+        topology_generator.convert_query_to_topology(snapshot_dict, use_parallel: params[:use_parallel])
         topology_generator.save_netoviz_index(snapshot_dict)
         {
           method: 'POST',
