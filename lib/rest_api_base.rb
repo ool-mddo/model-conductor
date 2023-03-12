@@ -24,6 +24,19 @@ module ModelConductor
 
   # module common logger
   @logger = RestApiBase.logger
+  @logger.progname = 'model-conductor'
+  @logger.level = case ENV.fetch('MODEL_CONDUCTOR_LOG_LEVEL', 'info')
+                  when /fatal/i
+                    Logger::FATAL
+                  when /error/i
+                    Logger::ERROR
+                  when /warn/i
+                    Logger::WARN
+                  when /debug/i
+                    Logger::DEBUG
+                  else
+                    Logger::INFO # default
+                  end
 
   # rest api client (backend interface)
   @rest_api = MddoRestApiClient.new(@logger)
