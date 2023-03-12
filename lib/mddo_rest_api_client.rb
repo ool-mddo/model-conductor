@@ -57,27 +57,62 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [String] src_snapshot Source snapshot
+    # @param [String] dst_snapshot Destination snapshot
+    # @return [Hash, nil] Topology diff data
+    def fetch_topology_diff(network, src_snapshot, dst_snapshot)
+      response = fetch("/topologies/#{network}/snapshot_diff/#{src_snapshot}/#{dst_snapshot}")
+      # NOTICE: DO NOT symbolize
+      response_data = fetch_response(response, symbolize_names: false)
+      response_data['topology_data']
+    end
+
+    # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @return [Hash, nil] topology data
     def fetch_topology_data(network, snapshot)
-      url = "/topologies/#{network}/#{snapshot}/topology"
-      response = fetch(url)
-      return nil if error_response?(response)
-
+      response = fetch("/topologies/#{network}/#{snapshot}/topology")
       # NOTICE: DO NOT symbolize
-      response_data = JSON.parse(response.body, { symbolize_names: false })
+      response_data = fetch_response(response, symbolize_names: false)
       response_data['topology_data']
+    end
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @param [Hash] data Data to post,
+    #   empty: generate snapshot data from query data,
+    #   exist "topology_data": overwrite topology data
+    # @return [Hash, nil] topology data
+    def post_topology_data(network, snapshot, data = {})
+      response = post("/topologies/#{network}/#{snapshot}/topology", data)
+      # NOTICE: DO NOT symbolize
+      response_data = fetch_response(response, symbolize_names: false)
+      response_data['topology_data']
+    end
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [Hash, nil]
+    def post_batfish_query(network, snapshot)
+      response = post("/queries/#{network}/#{snapshot}")
+      fetch_response(response)
+    end
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @param [Hash] data Data to post (options)
+    # @return [Array<Hash>, nil] snapshot patterns
+    def post_snapshot_patterns(network, snapshot, data = {})
+      response = post("/configs/#{network}/#{snapshot}/snapshot_patterns", data)
+      fetch_response(response)
     end
 
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @return [Array<Hash>, nil] snapshot patterns
     def fetch_snapshot_patterns(network, snapshot)
-      url = "/configs/#{network}/#{snapshot}/snapshot_patterns"
-      response = fetch(url)
-      return {} if error_response?(response)
-
-      JSON.parse(response.body, { symbolize_names: true })
+      response = fetch("/configs/#{network}/#{snapshot}/snapshot_patterns")
+      fetch_response(response)
     end
 
     # @return [Array<String>,nil] networks
@@ -127,6 +162,13 @@ module ModelConductor
       fetch_response(response)
     end
 
+    # @param [Array<Hash>] index_data Netoviz index
+    # @return [Object, nil]
+    def post_topologies_index(index_data)
+      response = post('/topologies/index', { index_data: })
+      fetch_response(response)
+    end
+
     private
 
     # @param [String] api_path PATH of REST API
@@ -144,9 +186,10 @@ module ModelConductor
     end
 
     # @param [HTTP::Message] response HTTP response
+    # @param [Boolean] symbolize_names Symbolize names of response body (default: true)
     # @return [Object, nil]
-    def fetch_response(response)
-      error_response?(response) ? nil : JSON.parse(response.body, { symbolize_names: true })
+    def fetch_response(response, symbolize_names: true)
+      error_response?(response) ? nil : JSON.parse(response.body, { symbolize_names: })
     end
   end
 end

@@ -98,9 +98,7 @@ module ModelConductor
         datum = netoviz_index_datum(network, snapshot_type[:type], snapshot_type[:data])
         netoviz_index_data.push(datum)
       end
-
-      url = '/topologies/index'
-      @rest_api.post(url, { index_data: netoviz_index_data })
+      @rest_api.post_topologies_index(netoviz_index_data)
     end
 
     private
@@ -192,8 +190,6 @@ module ModelConductor
       @rest_api.delete("/configs/#{network}/#{snapshot}/snapshot_patterns")
     end
 
-    # rubocop:disable Metrics/MethodLength
-
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @param [Hash] options Options
@@ -206,16 +202,12 @@ module ModelConductor
         post_opt[:node] = options['off_node']
         post_opt[:interface_regexp] = options['off_intf_re'] if options.key?('off_intf_re')
       end
-      url = "/configs/#{network}/#{snapshot}/snapshot_patterns"
-      # response: snapshot_pattern
-      response = @rest_api.post(url, post_opt)
 
-      snapshot_patterns = parse_json_str(response.body)
+      snapshot_patterns = @rest_api.post_snapshot_patterns(network, snapshot, post_opt)
       # when a target snapshot specified
       snapshot_patterns.filter! { |sp| sp[:target_snapshot_name] == options['snapshot'] } if options.key?('snapshot')
       snapshot_patterns
     end
-    # rubocop:enable Metrics/MethodLength
 
     # @param [Symbol] snapshot_type Snapshot type (:physical or :logical)
     # @param [Hash] snapshot_data Snapshot metadata (model_info or snapshot_pattern elements)
@@ -234,11 +226,8 @@ module ModelConductor
       target_key = "[query_batfish] #{network}/#{snapshot}:"
 
       @logger.info "#{target_key} Query configurations for each snapshot"
-      url = "/queries/#{network}/#{snapshot}"
-      @rest_api.post(url)
+      @rest_api.post_batfish_query(network, snapshot)
     end
-
-    # rubocop:disable Metrics/MethodLength
 
     # @param [String] network Network name
     # @param [Symbol] snapshot_type Snapshot type (:physical or :logical)
@@ -249,19 +238,15 @@ module ModelConductor
       target_key = "[process_snapshot_data] #{network}/#{snapshot}:"
 
       @logger.info "#{target_key} Generate topology file from query results"
-      write_url = "/topologies/#{network}/#{snapshot}"
-      @rest_api.post(write_url)
+      @rest_api.post_topology_data(network, snapshot)
 
       return unless logical_snapshot?(snapshot_data)
 
       @logger.info "#{target_key} Generate diff data and write back"
       src_snapshot = snapshot_data[:orig_snapshot_name]
-      diff_url = "/topologies/#{network}/snapshot_diff/#{src_snapshot}/#{snapshot}"
-      diff_response = @rest_api.fetch(diff_url)
-      diff_topology_data = parse_json_str(diff_response.body)
-      @rest_api.post(write_url, { topology_data: diff_topology_data[:topology_data] })
+      diff_topology_data = @rest_api.fetch_topology_diff(network, src_snapshot, snapshot)
+      @rest_api.post_topology_data(network, snapshot, { topology_data: diff_topology_data })
     end
-    # rubocop:enable Metrics/MethodLength
   end
   # rubocop:enable Metrics/ClassLength
 end
