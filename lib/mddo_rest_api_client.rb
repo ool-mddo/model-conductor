@@ -6,7 +6,9 @@ require 'httpclient'
 module ModelConductor
   # http client for linkdown simulation
   class MddoRestApiClient
+    # Backend API (batfish-wrapper)
     BATFISH_WRAPPER_HOST = ENV.fetch('BATFISH_WRAPPER_HOST', 'batfish-wrapper:5000')
+    # Backend API (netomox-exp)
     NETOMOX_EXP_HOST = ENV.fetch('NETOMOX_EXP_HOST', 'netomox-exp:9292')
 
     # @param [Logger] logger

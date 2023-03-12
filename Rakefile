@@ -17,8 +17,8 @@ begin
   require 'yard/rake/yardoc_task'
   YARD::Rake::YardocTask.new do |task|
     task.files = FileList[
-      './model_defs/topology_builder/**/*.rb',
-      './exe/**/*.rb'
+      './app.rb',
+      './lib/**/*.rb'
     ]
   end
 rescue LoadError

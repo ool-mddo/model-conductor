@@ -10,10 +10,12 @@ module ModelConductor
     format :json
 
     helpers do
+      # @return [Logger] Logger
       def logger
         RestApiBase.logger
       end
 
+      # @return [MddoRestApiClient] REST API client
       def rest_api
         ModelConductor.rest_api
       end
@@ -28,10 +30,12 @@ module ModelConductor
 
   module_function
 
+  # @return [Logger] Logger
   def logger
     @logger
   end
 
+  # @return [MddoRestApiClient] REST API client
   def rest_api
     @rest_api
   end
