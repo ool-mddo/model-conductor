@@ -14,29 +14,31 @@ module ModelConductor
   class TopologyConductorRestApi < RestApiBase
     # rubocop:disable Metrics/BlockLength
     namespace 'model-conductor' do
-      desc 'Post (generate and register) topology data from configs'
-      params do
-        requires :model_info, type: Array, desc: 'List of model-info'
-        optional :phy_ss_only, type: Boolean, desc: 'Physical snapshot only'
-        optional :use_parallel, type: Boolean, desc: 'Use parallel'
-        optional :off_node, type: String, desc: 'Node name to down'
-        optional :off_intf_re, type: String, desc: 'Interface name to down (regexp)'
-      end
-      # receive model_info
-      post 'generate-topology' do
-        logger.debug "[model-conductor/generate-topology] params: #{params}"
-        # scenario
-        topology_generator = TopologyGenerator.new
-        topology_generator.delete_all_data_dir(params['model_info'])
-        snapshot_dict = topology_generator.generate_snapshot_dict(params['model_info'], params)
-        topology_generator.convert_config_to_query(snapshot_dict)
-        topology_generator.convert_query_to_topology(snapshot_dict, use_parallel: params[:use_parallel])
-        topology_generator.save_netoviz_index(snapshot_dict)
-        {
-          method: 'POST',
-          path: '/model-conductor/generate-topology',
-          snapshot_dict:
-        }
+      namespace 'topology' do
+        desc 'Post (generate and register) topology data from configs'
+        params do
+          requires :network, type: String, desc: 'Network name'
+          requires :snapshot, type: String, desc: 'Snapshot name'
+          requires :label, type: String, desc: 'Label of the network/snapshot'
+          optional :phy_ss_only, type: Boolean, desc: 'Physical snapshot only'
+          optional :use_parallel, type: Boolean, desc: 'Use parallel'
+          optional :off_node, type: String, desc: 'Node name to down'
+          optional :off_intf_re, type: String, desc: 'Interface name to down (regexp)'
+        end
+        post ':network/:snapshot' do
+          logger.debug "[model-conductor/generate-topology] params: #{params}"
+          # scenario
+          topology_generator = TopologyGenerator.new
+          snapshot_dict = topology_generator.generate_snapshot_dict(params[:network], params[:snapshot],
+                                                                    params[:label], params)
+          topology_generator.convert_config_to_query(snapshot_dict)
+          topology_generator.convert_query_to_topology(snapshot_dict, use_parallel: params[:use_parallel])
+          {
+            method: 'POST',
+            path: "/model-conductor/topology/#{params[:network]}/#{params[:snapshot]}",
+            snapshot_dict:
+          }
+        end
       end
 
       namespace 'subsets' do

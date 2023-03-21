@@ -53,12 +53,12 @@ rerun [--force-polling] bundle exec rackup -s webrick -o 0.0.0.0 -p 9292
 
 Generate snapshot topology from query data for all snapshots in a network 
 
-* POST `/model-conductor/generate-topology`
-  * `model-info`: Physical snapshot info (list)
+* POST `/model-conductor/topology/<network>/<snnapshot>`
+  * `label`: Label (description) of the physical snapshot
   * `phy_ss_only`: [optional] Flag to target only physical snapshots
   * `use_parallel`: [optional] Flag to use parallel processing for query-to-topology data generation stage
   * `off_node`: [optional] Node name to draw-off
-  * `off_intf_re`: [optional] Interface name (regexpp match) to draw-off in `off_node`
+  * `off_intf_re`: [optional] Interface name (regexp match) to draw-off in `off_node`
 
 ```shell
 # model-info.json
