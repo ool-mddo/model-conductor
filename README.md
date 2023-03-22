@@ -53,7 +53,7 @@ rerun [--force-polling] bundle exec rackup -s webrick -o 0.0.0.0 -p 9292
 
 Generate snapshot topology from query data for all snapshots in a network 
 
-* POST `/model-conductor/topology/<network>/<snnapshot>`
+* POST `/conduct/<network>/<snnapshot>/topology`
   * `label`: Label (description) of the physical snapshot
   * `phy_ss_only`: [optional] Flag to target only physical snapshots
   * `use_parallel`: [optional] Flag to use parallel processing for query-to-topology data generation stage
@@ -62,43 +62,43 @@ Generate snapshot topology from query data for all snapshots in a network
 
 ```shell
 # model-info.json
-# -> { "model-info": <model-info list> }
+# -> { "label": "description of the snapshot", ... }
 curl -X POST -H "Content-Type: application/json" -d @model-info.json \
-  http://localhost:9292/model-conductor/generate-topology
+  http://localhost:9292/conduct/pushed_configs/mddo_network
 ```
 
 ### Static verification of network structure
 
 Fetch subsets of a snapshot
 
-* GET `/model-conductor/subsets/<network>/<snapshot>`
+* GET `/conduct/<network>/<snapshot>/subsets`
 
 ```shell
-curl http://localhost:9292/model-constructor/subsets/pusheed_configs/mddo_network
+curl http://localhost:9292/conduct/pusheed_configs/mddo_network/subsets
 ```
 
 Fetch subset comparison data between physical and logical snapshots in a network
 
-* GET `/model-conductor/subsets/<network>/<physical-snapshot>/compare`
+* GET `/conduct/<network>/<physical-snapshot>/subsets_diff`
   * `min_score`: [optional] Ignore comparison data lower than this score (default: 0)
 
 ```shell
-curl http://localhost:9292/model-constructor/subsets/pushed_configs/mddo_network/compare
+curl http://localhost:9292/conduct/pushed_configs/mddo_network/subsets_diff
 ```
 
 ### L3 Reachability test
 
 Run reachability test with test-pattern definition
 
-* GET `/model-consstructor/reach_test`
-  * `snapshot_re`: Snapshot name (regexp match) to test reachability
+* GET `/conduct/<network>/reachability`
+  * `snapshoots`: List of snapshot to test reachability
   * `test_pattern`: Test pattern definition
 
 ```shell
 # test_pattern.json
-# -> { "snapshot_re": "linkdown", "test_pattern": <test-patteren> }
+# -> { "snapshots": ["mddo_network_linkdown_01", ...], "test_pattern": <test-pattern> }
 curl -X POST -H "Content-Type: application/json" -d @test_pattern.json \
-  http://localhost:9292/model-conductor/reach_test
+  http://localhost:9292/conduct/pushed_configs/reachability
 ```
 
 ## Development
