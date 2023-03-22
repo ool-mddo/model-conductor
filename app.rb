@@ -82,18 +82,17 @@ module ModelConductor
 
       desc 'Reachability test with test-pattern'
       params do
-        requires :snapshot_re, type: String, desc: 'Snapshot name (pattern regexp)'
+        requires :network, type: String, desc: 'Network name'
+        requires :snapshots, type: Array[String], desc: 'List of snapshot to test'
         requires :test_pattern, type: Hash, desc: 'Reachability test pattern definitions'
       end
-      post 'reach_test' do
-        network = params[:test_pattern][:environment][:network]
-
+      post 'reachability/:network' do
         tester = ReachTester.new(params[:test_pattern])
-        reach_results = tester.exec_all_traceroute_tests(network, params[:snapshot_re])
+        reach_results = tester.exec_all_traceroute_tests(params[:network], params[:snapshots])
         converter = ReachResultConverter.new(reach_results)
         {
           method: 'POST',
-          path: '/model-conductor/reach_test',
+          path: "/model-conductor/reachability/#{params[:network]}",
           reach_results:,
           reach_results_summary: converter.summary,
           reach_results_summary_table: converter.full_table

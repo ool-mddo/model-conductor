@@ -19,14 +19,13 @@ module ModelConductor
     # rubocop:disable Metrics/MethodLength
 
     # @param [String] network Network name to analyze (in batfish)
-    # @param [String] snapshot_re Snapshot name regexp
+    # @param [Array<String>] snapshots List of snapshots to test
     # @return [Array<Hash>]
-    def exec_all_traceroute_tests(network, snapshot_re)
-      snapshots = @rest_api.fetch_snapshots(network, simulated: true)
+    def exec_all_traceroute_tests(network, snapshots)
       @logger.debug "[exec_all_traceroute_tests] snapshots=#{snapshots}"
       return [] if snapshots.nil?
 
-      snapshots.grep(Regexp.new(snapshot_re)).map do |snapshot|
+      snapshots.map do |snapshot|
         {
           network:,
           snapshot:,
