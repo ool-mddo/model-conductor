@@ -63,8 +63,7 @@ module ModelConductor
     def fetch_topology_diff(network, src_snapshot, dst_snapshot)
       response = fetch("/topologies/#{network}/snapshot_diff/#{src_snapshot}/#{dst_snapshot}")
       # NOTICE: DO NOT symbolize
-      response_data = fetch_response(response, symbolize_names: false)
-      response_data['topology_data']
+      fetch_response(response, symbolize_names: false)
     end
 
     # @param [String] network Network name
@@ -73,8 +72,7 @@ module ModelConductor
     def fetch_topology_data(network, snapshot)
       response = fetch("/topologies/#{network}/#{snapshot}/topology")
       # NOTICE: DO NOT symbolize
-      response_data = fetch_response(response, symbolize_names: false)
-      response_data['topology_data']
+      fetch_response(response, symbolize_names: false)
     end
 
     # @param [String] network Network name
@@ -86,8 +84,7 @@ module ModelConductor
     def post_topology_data(network, snapshot, data = {})
       response = post("/topologies/#{network}/#{snapshot}/topology", data)
       # NOTICE: DO NOT symbolize
-      response_data = fetch_response(response, symbolize_names: false)
-      response_data['topology_data']
+      fetch_response(response, symbolize_names: false)
     end
 
     # @param [String] network Network name
