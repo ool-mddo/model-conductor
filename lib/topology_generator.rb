@@ -191,9 +191,8 @@ module ModelConductor
       return unless logical_snapshot?(snapshot_data)
 
       @logger.info "#{target_key} Generate diff data and write back"
-      src_snapshot = snapshot_data[:orig_snapshot_name]
-      diff_topology_data = @rest_api.fetch_topology_diff(network, src_snapshot, snapshot)
-      @rest_api.post_topology_data(network, snapshot, { topology_data: diff_topology_data })
+      topology_data = @rest_api.fetch_topology_diff(network, snapshot_data[:orig_snapshot_name], snapshot)
+      @rest_api.post_topology_data(network, snapshot, { topology_data: })
     end
   end
 end

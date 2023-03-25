@@ -36,6 +36,18 @@ module ModelConductor
           }
         end
 
+        desc 'Get topology diff'
+        params do
+          requires :src_ss, type: String, desc: 'Source snapshot name'
+          requires :dst_ss, type: String, desc: 'Destination snapshot name'
+          optional :upper_layer3, type: Boolean, desc: 'Diff with layers upper layer3', default: false
+        end
+        get 'snapshot_diff/:src_ss/:dst_ss' do
+          # reply
+          rest_api.fetch_topology_diff(params[:network], params[:src_ss], params[:dst_ss],
+                                       upper_layer3: params[:upper_layer3])
+        end
+
         params do
           requires :snapshot, type: String, desc: 'Snapshot name'
         end
@@ -49,7 +61,6 @@ module ModelConductor
             optional :off_intf_re, type: String, desc: 'Interface name to down (regexp)'
           end
           post 'topology' do
-            logger.debug "[model-conductor/generate-topology] params: #{params}"
             # scenario
             topology_generator = TopologyGenerator.new
             snapshot_dict = topology_generator.generate_snapshot_dict(params[:network], params[:snapshot],

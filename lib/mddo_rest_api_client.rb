@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'netomox'
 require 'json'
 require 'httpclient'
 
@@ -57,22 +58,35 @@ module ModelConductor
     end
 
     # @param [String] network Network name
-    # @param [String] src_snapshot Source snapshot
-    # @param [String] dst_snapshot Destination snapshot
-    # @return [Hash, nil] Topology diff data
-    def fetch_topology_diff(network, src_snapshot, dst_snapshot)
-      response = fetch("/topologies/#{network}/snapshot_diff/#{src_snapshot}/#{dst_snapshot}")
+    # @param [String] snapshot Snapshot name
+    # @param [Boolean] upper_layer3 With layers upper layer3
+    # @return [Hash, nil] topology data
+    def fetch_topology_data(network, snapshot, upper_layer3: false)
+      layer_select = upper_layer3 ? '/upper_layer3' : ''
+      response = fetch("/topologies/#{network}/#{snapshot}/topology#{layer_select}")
       # NOTICE: DO NOT symbolize
       fetch_response(response, symbolize_names: false)
     end
 
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
-    # @return [Hash, nil] topology data
-    def fetch_topology_data(network, snapshot)
-      response = fetch("/topologies/#{network}/#{snapshot}/topology")
-      # NOTICE: DO NOT symbolize
-      fetch_response(response, symbolize_names: false)
+    # @param [Boolean] upper_layer3 With layers upper layer3
+    # @return [Netomox::Topology::Networks] topology object
+    def fetch_topology_object(network, snapshot, upper_layer3: false)
+      topology_data = fetch_topology_data(network, snapshot, upper_layer3:)
+      Netomox::Topology::Networks.new(topology_data)
+    end
+
+    # @param [String] network Network name
+    # @param [String] src_snapshot Source snapshot name
+    # @param [String] dst_snapshot Destination snapshot name
+    # @param [Boolean] upper_layer3 Diff with layers upper layer3
+    # @return [Hash] topology data (with diff_state)
+    def fetch_topology_diff(network, src_snapshot, dst_snapshot, upper_layer3: false)
+      src_nws = fetch_topology_object(network, src_snapshot, upper_layer3:)
+      dst_nws = fetch_topology_object(network, dst_snapshot, upper_layer3:)
+      diff_nws = src_nws.diff(dst_nws)
+      diff_nws.to_data
     end
 
     # @param [String] network Network name
