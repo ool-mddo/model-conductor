@@ -5,7 +5,9 @@ require 'json'
 require 'httpclient'
 
 module ModelConductor
-  # http client for linkdown simulation
+  # rubocop:disable Metrics/ClassLength
+
+  # http client Mddo systems
   class MddoRestApiClient
     # Backend API (batfish-wrapper)
     BATFISH_WRAPPER_HOST = ENV.fetch('BATFISH_WRAPPER_HOST', 'batfish-wrapper:5000')
@@ -58,6 +60,25 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [String] origin_snapshot Snapshot name to create convert table
+    # @return [HTTP::Message,nil] Reply
+    def init_ns_convert_table(network, origin_snapshot)
+      @logger.info "Initialize ns convert table of network:#{network} with snapshot:#{origin_snapshot}"
+      resp = fetch("/topologies/#{network}/ns_convert_table")
+      # TODO: error handling
+      post("/topologies/#{network}/ns_convert_table", { origin_snapshot: }) if resp.status >= 400
+    end
+
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [Hash,nil] converted topology data
+    def fetch_converted_topology_data(network, snapshot)
+      response = fetch("/topologies/#{network}/#{snapshot}/converted_topology")
+      # NOTICE: DO NOT symbolize
+      fetch_response(response, symbolize_names: false)
+    end
+
+    # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @param [Boolean] upper_layer3 With layers upper layer3
     # @return [Hash, nil] topology data
@@ -91,11 +112,12 @@ module ModelConductor
 
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
-    # @param [Hash] data Data to post,
+    # @param [Hash] (Optional) topology_data Topology data to post,
     #   empty: generate snapshot data from query data,
     #   exist "topology_data": overwrite topology data
     # @return [Hash, nil] topology data
-    def post_topology_data(network, snapshot, data = {})
+    def post_topology_data(network, snapshot, topology_data = {})
+      data = topology_data.nil? || topology_data.empty? ? {} : { topology_data: }
       response = post("/topologies/#{network}/#{snapshot}/topology", data)
       # NOTICE: DO NOT symbolize
       fetch_response(response, symbolize_names: false)
@@ -203,4 +225,5 @@ module ModelConductor
       error_response?(response) ? nil : JSON.parse(response.body, { symbolize_names: })
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end

@@ -192,7 +192,7 @@ module ModelConductor
 
       @logger.info "#{target_key} Generate diff data and write back"
       topology_data = @rest_api.fetch_topology_diff(network, snapshot_data[:orig_snapshot_name], snapshot)
-      @rest_api.post_topology_data(network, snapshot, { topology_data: })
+      @rest_api.post_topology_data(network, snapshot, topology_data)
     end
   end
 end

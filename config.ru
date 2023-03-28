@@ -2,4 +2,4 @@
 
 require_relative 'app'
 
-run ModelConductor::TopologyConductorRestApi
+run ModelConductor::ModelConductorRestApi
