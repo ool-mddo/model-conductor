@@ -99,8 +99,11 @@ module ModelConductor
     # @param [String] snapshot Snapshot name
     # @param [Boolean] upper_layer3 With layers upper layer3
     # @return [Netomox::Topology::Networks] topology object
+    # @raise [StandardError]
     def fetch_topology_object(network, snapshot, upper_layer3: false)
       topology_data = fetch_topology_data(network, snapshot, upper_layer3:)
+      raise StandardError, "Topology data of #{network}/#{snapshot} is not found" if topology_data.nil?
+
       Netomox::Topology::Networks.new(topology_data)
     end
 
