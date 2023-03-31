@@ -60,13 +60,19 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @return [Hash,nil] converted topology data
+    def fetch_ns_convert_table(network)
+      response = fetch("/topologies/#{network}/ns_convert_table")
+      # NOTICE: DO NOT symbolize (hash keys as host/interface name are string)
+      fetch_response(response, symbolize_names: false)
+    end
+
+    # @param [String] network Network name
     # @param [String] origin_snapshot Snapshot name to create convert table
     # @return [HTTP::Message,nil] Reply
-    def init_ns_convert_table(network, origin_snapshot)
-      @logger.info "Initialize ns convert table of network:#{network} with snapshot:#{origin_snapshot}"
-      resp = fetch("/topologies/#{network}/ns_convert_table")
-      # TODO: error handling
-      post("/topologies/#{network}/ns_convert_table", { origin_snapshot: }) if resp.status >= 400
+    def post_init_ns_convert_table(network, origin_snapshot)
+      response = post("/topologies/#{network}/ns_convert_table", { origin_snapshot: })
+      fetch_response(response)
     end
 
     # @param [String] network Network name
