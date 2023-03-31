@@ -101,6 +101,42 @@ curl -X POST -H "Content-Type: application/json" -d @test_pattern.json \
   http://localhost:9292/conduct/pushed_configs/reachability
 ```
 
+### Snapshot diff
+
+Take snapshot diff in a network
+
+* GET `/conduct/<network>/snapshot_diff/<src_snapshot>/<dst_snapshot>`
+  * `upper_layer3`: [optional] compare layer3 or upper layer
+
+```shell
+curl -s "http://localhost:9292/conduct/mddo-ospf/snapshot_diff/emulated_asis/emulated_tobe?upper_layer3=true"
+```
+
+Take snapshot diff and write back (overwrite) as destination snapshot
+
+* POST `/conduct/<network>/snapshot_diff/<src_snapshot>/<dst_snapshot>`
+  * `upper_layer3`: [optional] compare layer3 or upper layer
+
+```shell
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{ "upper_layer3": true }' \
+  http://localhost:9292/conduct/mddo-ospf/snapshot_diff/emulated_asis/emulated_tobe
+```
+
+### Convert snapshot namespace
+
+Convert namespace of source snapshot and post it as destination snapshot
+
+* POST `/conduct/<network>/ns_convert/<src_snapshot>/<dst_snapshot>`
+  * `table_origin`: [optional] Origin snapshot name to initialize convert table,
+    Force update the convert table of a network if this option used.
+
+```shell
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{ "table_origin": "original_asis" }' \
+  http://localhost:9292/conduct/mddo-ospf/ns_convert/original_asis/emulated_asis
+```
+
 ## Development
 
 ### Optional: Build netomox container
