@@ -120,6 +120,21 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [String] src_snapshot Source snapshot name
+    # @param [String] dst_snapshot Destination snapshot name
+    # @raise [StandardError] if model-merge failed
+    def fetch_config_delta(network, src_snapshot, dst_snapshot)
+      request_data = {
+        'asis' => fetch_topology_data(network, src_snapshot),
+        'tobe' => fetch_topology_data(network, dst_snapshot)
+      }
+      response = post('/tools/model-merge', request_data)
+      raise StandardError, "Model-merge failed (status:#{response.status})" if error_response?(response)
+
+      fetch_response(response)
+    end
+
+    # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @param [Hash] (Optional) topology_data Topology data to post,
     #   empty: generate snapshot data from query data,
