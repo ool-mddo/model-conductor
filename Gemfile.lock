@@ -1,7 +1,7 @@
 GIT
   remote: https://github.com/ool-mddo/netomox
-  revision: 1f8717ceb30faa89e952f78de8ea67afb8fd85a6
-  tag: v0.2.0
+  revision: 1cf5b9818a183ffabf22464de53dc33b4141b687
+  branch: main
   specs:
     netomox (0.1.0)
       hashdiff (~> 1.0.1)
