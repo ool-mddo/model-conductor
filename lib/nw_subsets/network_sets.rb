@@ -26,7 +26,8 @@ module ModelConductor
     # @return [Hash]
     # @raise [StandardError]
     def diff(other)
-      @sets.map(&:network_name).to_h do |nw_name|
+      @sets.to_h do |nw_set|
+        nw_name = nw_set.network_name
         orig_set = network(nw_name)
         target_set = other.network(nw_name)
         raise StandardError, 'network name not found in NetworkSet' if orig_set.nil? || target_set.nil?
