@@ -6,6 +6,7 @@ COPY . /model-conductor
 # gcc/make: to build native extensions (json)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc make \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # install all (production and development) ruby tools (with native extensions)
