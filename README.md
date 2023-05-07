@@ -27,7 +27,7 @@ bundle install
 ## Environment variables
 
 API entrypoints:
-* `BATFISH_WRAPPER_HOST` : batfish-wrapper host 
+* `BATFISH_WRAPPER_HOST` : batfish-wrapper host
 * `NETOMOX_EXP_HOST` : netomox-exp host
 
 Log level variable:
@@ -51,7 +51,7 @@ rerun [--force-polling] bundle exec rackup -s webrick -o 0.0.0.0 -p 9292
 
 ### Operate model data
 
-Generate snapshot topology from query data for all snapshots in a network 
+Generate snapshot topology from query data for all snapshots in a network
 
 * POST `/conduct/<network>/<snnapshot>/topology`
   * `label`: Label (description) of the physical snapshot
@@ -139,10 +139,17 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ## Development
 
-### Optional: Build netomox container
+### Optional: Build model-conductor container
+
+model-conductor uses [netomox](https://github.com/ool-mddo/netomox) gem that pushed on github packages.
+So, it need authentication to exec `bundle install` when building its container image.
+You have to pass authetication credential via `ghp_credential` environment variable like below:
+
+- `USERNAME` : your github username
+- `TOKEN` : your github personal access token (need `read:packages` scope)
 
 ```shell
-docker build -t model-conductor .
+ghp_credential="USERNAME:TOKEN" docker buildx build -t model-conductor --secret id=ghp_credential .
 ```
 
 ### Generate YARD documents
