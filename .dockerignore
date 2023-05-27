@@ -1,0 +1,20 @@
+# auto generated documents
+doc
+# local configs
+.rubocop.yml
+.yardoc
+.yardopts
+# docker
+.dockerignore
+Dockerfile
+# git
+.git
+.github
+.gitignore
+# editor
+**/.idea
+**/.vscode
+# ruby
+Gemfile.lock
+vendor
+.bundle
