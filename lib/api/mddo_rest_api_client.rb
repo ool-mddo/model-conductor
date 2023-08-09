@@ -226,15 +226,6 @@ module ModelConductor
       fetch_response(response)
     end
 
-    # @param [String] network Network name in batfish
-    # @param [String] snapshot Snapshot name in network
-    # @param [Hash] ext_topology_data External topology data (RFC8345 Hash)
-    # @return [Hash, nil]
-    def post_splice_topology(network, snapshot, ext_topology_data)
-      response = post("/topologies/#{network}/#{snapshot}/splice_topology", { ext_topology_data: })
-      fetch_response(response)
-    end
-
     private
 
     # @param [String] api_path PATH of REST API

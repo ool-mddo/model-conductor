@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'grape'
+require 'lib/splice_topology/topology_splicer'
 
 module ModelConductor
   module ApiRoute
@@ -12,16 +13,16 @@ module ModelConductor
         optional :overwrite, type: Boolean, desc: 'Overwrite to topology data', default: true
       end
       post 'splice_topology' do
-        keys = %i[network snapshot ext_topology_data overwrite]
-        network, snapshot, ext_topology_data, overwrite = keys.map { |key| params[key] }
+        network, snapshot, overwrite = %i[network snapshot overwrite].map { |key| params[key] }
 
-        # splice external topology data into (internal = generated from configs) topology data
-        spliced_topology_data = rest_api.post_splice_topology(network, snapshot, ext_topology_data)
-        # overwrite it to topology data
-        spliced_topology_data = rest_api.post_topology_data(network, snapshot, spliced_topology_data) if overwrite
+        ext_topology = params[:ext_topology_data]
+        int_topology = rest_api.fetch_topology_data(network, snapshot)
+        splicer = TopologySplicer.new(int_topology, ext_topology)
+        splicer.splice!
+        spliced_topology = splicer.to_data
 
-        # response
-        spliced_topology_data
+        # response (spliced topology data: RFC8345 Hash)
+        overwrite ? rest_api.post_topology_data(network, snapshot, spliced_topology) : spliced_topology
       end
     end
   end

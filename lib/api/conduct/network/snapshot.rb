@@ -2,8 +2,8 @@
 
 require 'grape'
 require_relative 'snapshot/subsets'
-require_relative 'snapshot/topology'
 require_relative 'snapshot/splice_topology'
+require_relative 'snapshot/topology'
 
 module ModelConductor
   module ApiRoute
@@ -14,8 +14,8 @@ module ModelConductor
       end
       namespace ':snapshot' do
         mount ApiRoute::Subsets
-        mount ApiRoute::Topology
         mount ApiRoute::SpliceTopology
+        mount ApiRoute::Topology
       end
     end
   end
