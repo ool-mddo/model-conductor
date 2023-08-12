@@ -161,7 +161,7 @@ module ModelConductor
       # insert nodes in external network to internal network
       int_nw.nodes.concat(ext_nw.nodes)
       # insert links in external network to internal network
-      int_nw.nodes.concat(ext_nw.links)
+      int_nw.links.concat(ext_nw.links)
 
       # splice int/ext AS according to BGP-AS topology
       bgp_as_nw = @ext_topology.find_network('bgp_as')
