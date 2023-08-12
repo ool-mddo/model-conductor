@@ -5,8 +5,13 @@ require 'ipaddress'
 require_relative 'netomox_patch'
 
 module ModelConductor
+  # rubocop:disable Metrics/ClassLength
+
   # Splice external topology data to specified network/snapshot topology
   class TopologySplicer
+    # Network names to splicing
+    SPLICE_TARGET_NETWORKS = %w[layer3 bgp_proc].freeze
+
     # @param [Hash] int_topology_data (Internal) topology data (RFC8345 Hash)
     # @param [Hash] ext_topology_data External topology data (RFC8345 Hash)
     def initialize(int_topology_data, ext_topology_data)
@@ -139,62 +144,59 @@ module ModelConductor
       int_l3_nw.append_link_by_tp(dst_l3_seg_tp, dst_l3_tp) #        seg -> dst
     end
 
-    def splice_bgp_proc!
+    # @param [String] nw_name Network (layer) name to splice
+    # @return [void]
+    # @yield [bgp_as_link, int_nw] Operation to connect int/ext link
+    # @yieldparam [Netomox::Topology::Link] bgp_as_link A link in bgp_as layer
+    # @yieldparam [Netomox::Topology::Network] int_nw Target (internal) network (specified by nw_name)
+    # @yieldreturn [void]
+    def splice_network!(nw_name)
       # NOTE: Prevent the same data added multiple times by repeatedly executing without initialization.
       return if @over_splice
 
-      int_bgp_proc_nw = @int_topology.find_network('bgp_proc')
-      ext_bgp_proc_nw = @ext_topology.find_network('bgp_proc')
+      int_nw = @int_topology.find_network(nw_name)
+      ext_nw = @ext_topology.find_network(nw_name)
 
       # NOTE: modify (write) internal topology data
-      # insert nodes in external bgp_proc network to internal bgp_proc network
-      int_bgp_proc_nw.nodes.concat(ext_bgp_proc_nw.nodes)
-      # insert links in external bgp_proc network to internal bgp_proc network
-      int_bgp_proc_nw.links.concat(ext_bgp_proc_nw.links)
+      # insert nodes in external network to internal network
+      int_nw.nodes.concat(ext_nw.nodes)
+      # insert links in external network to internal network
+      int_nw.nodes.concat(ext_nw.links)
 
       # splice int/ext AS according to BGP-AS topology
       bgp_as_nw = @ext_topology.find_network('bgp_as')
-      bgp_as_nw.links.each do |link|
-        src_bgp_proc_tp = find_supported_bgp_proc_tp(link.source)
-        dst_bgp_proc_tp = find_supported_bgp_proc_tp(link.destination)
+      bgp_as_nw.links.each do |bgp_as_link|
+        yield(bgp_as_link, int_nw)
+      end
+    end
+
+    # Splice both bgp_proc of ext- and int- topology data
+    # @return [void]
+    def splice_bgp_proc!
+      splice_network!('bgp_proc') do |bgp_as_link, int_bgp_proc_nw|
+        src_bgp_proc_tp = find_supported_bgp_proc_tp(bgp_as_link.source)
+        dst_bgp_proc_tp = find_supported_bgp_proc_tp(bgp_as_link.destination)
         # uni-directional: a link between term-points in bgp-as topology is bidirectional
         append_bgp_proc_link_between(int_bgp_proc_nw, src_bgp_proc_tp, dst_bgp_proc_tp)
       end
     end
 
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-
     # Splice both layer3 of ext- and int- topology data
     # @return [void]
     def splice_layer3!
-      # NOTE: Prevent the same data added multiple times by repeatedly executing without initialization.
-      return if @over_splice
-
-      int_l3_nw = @int_topology.find_network('layer3')
-      ext_l3_nw = @ext_topology.find_network('layer3')
-
-      # NOTE: modify (write) internal topology data
-      # insert nodes in external L3 network to internal L3 network
-      int_l3_nw.nodes.concat(ext_l3_nw.nodes)
-      # insert links in external L3 network to internal L3 network
-      int_l3_nw.links.concat(ext_l3_nw.links)
-
-      # splice int/ext AS according to BGP-AS topology
-      bgp_as_nw = @ext_topology.find_network('bgp_as')
-      bgp_as_nw.links.each do |link|
-        src_l3_tp = find_supported_l3_tp(link.source)
-        dst_l3_tp = find_supported_l3_tp(link.destination)
+      splice_network!('layer3') do |bgp_as_link, int_l3_nw|
+        src_l3_tp = find_supported_l3_tp(bgp_as_link.source)
+        dst_l3_tp = find_supported_l3_tp(bgp_as_link.destination)
         # uni-direction: a link between term-points in bgp-as topology is bidirectional
         append_l3_link_between(int_l3_nw, src_l3_tp, dst_l3_tp)
       end
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     # Insert networks (layers) in external topology data into internal topology data
     # @return [void]
     def insert_networks!
-      # NOTE: without bgp_proc & layer3, modify (write) internal topology data
-      @ext_topology.networks.reject { |nw| %w[layer3 bgp_proc].include?(nw.name) }.each do |ext_network|
+      # NOTE: without splicing target network, modify (write) internal topology data
+      @ext_topology.networks.reject { |nw| SPLICE_TARGET_NETWORKS.include?(nw.name) }.each do |ext_network|
         if @int_topology.find_network(ext_network.name)
           ModelConductor.logger.warn "Conflict network(layer) in int/ext network: #{ext_network.name}, ignore it."
           @over_splice = true
@@ -205,4 +207,5 @@ module ModelConductor
       end
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end
