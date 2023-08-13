@@ -76,29 +76,28 @@ module ModelConductor
     # @return [Netomox::Topology::TermPoint] L3 term-point supported by bgp_as_edge
     def find_supported_l3_tp(bgp_as_edge)
       # bgp_proc
-      supported_bgp_tp = find_supported_bgp_proc_tp(bgp_as_edge)
+      supported_bgp_proc_tp = find_supported_bgp_proc_tp(bgp_as_edge)
 
       # layer3
-      bgp_support = supported_bgp_tp.supports[0] # => Netomox::Topology::SupportingTerminationPoint
-      find_supported_tp(bgp_support)
+      bgp_proc_support = supported_bgp_proc_tp.supports[0] # => Netomox::Topology::SupportingTerminationPoint
+      find_supported_tp(bgp_proc_support)
     end
 
     # @return [void]
     def insert_supports!
       bgp_as_nw = @int_topology.find_network('bgp_as')
-      bgp_nw = @int_topology.find_network('bgp_proc')
+      bgp_proc_nw = @int_topology.find_network('bgp_proc')
 
       bgp_as_nw.nodes.each do |bgp_as_node|
         # external-as-node in bgp_as network have support node (given)
         next unless bgp_as_node.supports.empty?
 
         # internal-as-node in bgp_as network does not have support node to bgp network
-        # TODO: node attribute in bgp_as network is required
-        asn = bgp_as_node.name.gsub(/as(\d+)/, '\1').to_i
-        bgp_nw.nodes.each do |bgp_node|
-          next unless bgp_node.attribute.confederation_id == asn
+        asn = bgp_as_node.attribute.as_number
+        bgp_proc_nw.nodes.each do |bgp_proc_node|
+          next unless bgp_proc_node.attribute.confederation_id == asn
 
-          bgp_as_node.append_support_by_node(bgp_node)
+          bgp_as_node.append_support_by_node(bgp_proc_node)
         end
       end
     end
