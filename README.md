@@ -137,6 +137,22 @@ curl -s -X POST -H 'Content-Type: application/json' \
   http://localhost:9292/conduct/mddo-ospf/ns_convert/original_asis/emulated_asis
 ```
 
+### Splice external topology
+
+Splice external topology (external-AS topology) to snapshot topology.
+
+* POST `/conduct/<network>/<snapshot>/splice_topology`
+  * `ext_topology_data`: external topology data (RFC8345 json) to splice
+  * `overwrite`: [optional] true to write snapshot topology (default: true).
+    If false, it does not modify snapshot topology (Only get spliced topology data)
+
+```shell
+# ext_topology.json : external topology data to splice (RFC8345 json)
+curl -s -X POST -H "Content-Type: application/json" \
+  -d @<(jq '{ "overwrite": true, "ext_topology_data": . }' ext_topology.json) \
+  http://localhost:9292/conduct/biglobe_deform/original_asis/splice_topology
+```
+
 ## Development
 
 ### Optional: Build model-conductor container

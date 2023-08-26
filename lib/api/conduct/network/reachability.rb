@@ -10,8 +10,10 @@ module ModelConductor
     class Reachability < Grape::API
       desc 'Test L3 reachability with test-pattern for multiple snapshot in a network'
       params do
+        # rubocop:disable Style/RedundantArrayConstructor
         requires :snapshots, type: Array[String], desc: 'List of snapshot to test'
         requires :test_pattern, type: Hash, desc: 'Reachability test pattern definitions'
+        # rubocop:enable Style/RedundantArrayConstructor
       end
       post 'reachability' do
         network, snapshots, test_pattern = %i[network snapshots test_pattern].map { |key| params[key] }
