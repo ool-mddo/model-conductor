@@ -35,7 +35,11 @@ module ModelConductor
 
           attr_key = 'mddo-topology:bgp-proc-node-attributes'
           # NOTE: concatenate policies
-          target_node[attr_key]['policy'].concat(node_patch[attr_key]['policy'])
+          %w[policy prefix-set as-path-set community-set].each do |policy_attr_key|
+            next unless node_patch[attr_key].key?(policy_attr_key)
+
+            target_node[attr_key][policy_attr_key].concat(node_patch[attr_key][policy_attr_key])
+          end
         end
 
         # overwrite (response)
