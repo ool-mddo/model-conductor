@@ -12,11 +12,23 @@ module ModelConductor
     # Network names to splicing
     SPLICE_TARGET_NETWORKS = %w[layer3 bgp_proc].freeze
 
-    # @param [Hash] int_topology_data (Internal) topology data (RFC8345 Hash)
+    # @param [Hash] int_topology_data Internal topology data (RFC8345 Hash)
     # @param [Hash] ext_topology_data External topology data (RFC8345 Hash)
     def initialize(int_topology_data, ext_topology_data)
+      # DEBUG
+      bgp_proc_nw = ext_topology_data['ietf-network:networks']['network'].find { |nw| nw['network-id'] == 'bgp_proc' }
+      node = bgp_proc_nw['node'].find { |node| node['node-id'] == 'PNI01' }
+      warn "# DEBUG1: node=#{node['node-id']}, attr=#{node['mddo-topology:bgp-proc-node-attributes']}"
+
+      # convert RFC8345 Hash to Netomox::Topology::Networks
       @int_topology = instantiate_topology_data(int_topology_data)
       @ext_topology = instantiate_topology_data(ext_topology_data)
+
+      # DEBUG
+      bgp_proc_nw = @ext_topology.find_network('bgp_proc')
+      node = bgp_proc_nw.find_node_by_name('PNI01')
+      warn "# DEBUG2: node=#{node.name}, attr=#{node.attribute.to_data}"
+
       @over_splice = false
     end
 
