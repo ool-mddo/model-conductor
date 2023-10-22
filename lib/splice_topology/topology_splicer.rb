@@ -144,6 +144,8 @@ module ModelConductor
       int_l3_nw.append_link_by_tp(dst_l3_seg_tp, dst_l3_tp) #        seg -> dst
     end
 
+    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+
     # @param [String] nw_name Network (layer) name to splice
     # @return [void]
     # @yield [bgp_as_link, int_nw] Operation to connect int/ext link
@@ -159,7 +161,13 @@ module ModelConductor
 
       # NOTE: modify (write) internal topology data
       # insert nodes in external network to internal network
-      int_nw.nodes.concat(ext_nw.nodes)
+      ext_nw.nodes.each do |ext_node|
+        # found duplicated node -> overwrite it with external-AS node
+        # NOTE: external-AS nodes defined in configs/<network>/<snapshot>/hosts are included internal-AS network,
+        #   because batfish-query answers about them.
+        int_nw.nodes.delete_if { |int_node| int_node.name == ext_node.name } if int_nw.find_node_by_name(ext_node.name)
+        int_nw.nodes.push(ext_node)
+      end
       # insert links in external network to internal network
       int_nw.links.concat(ext_nw.links)
 
@@ -169,6 +177,7 @@ module ModelConductor
         yield(bgp_as_link, int_nw)
       end
     end
+    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     # Splice both bgp_proc of ext- and int- topology data
     # @return [void]
