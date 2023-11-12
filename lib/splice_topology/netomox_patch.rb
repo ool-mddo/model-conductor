@@ -9,8 +9,11 @@ module Netomox
       # @param [Node] node Node
       # @return [void]
       def append_support_by_node(node)
-        support = SupportingNode.new(support_data_by_node(node))
-        @supports.push(support)
+        new_support = SupportingNode.new(support_data_by_node(node))
+        # duplicate check
+        return if @supports.find { |support| support == new_support }
+
+        @supports.push(new_support)
       end
 
       private
@@ -33,6 +36,9 @@ module Netomox
       # @return [void]
       def append_link_by_tp(src_tp, dst_tp)
         new_link = create_link(link_data_by_tp(src_tp, dst_tp))
+        # duplicate check
+        return if @links.find { |link| link == new_link }
+
         @links.push(new_link)
       end
 
@@ -49,6 +55,24 @@ module Netomox
         segment_node = create_node(segment_node_data(segment, tp1, tp2))
         @nodes.push(segment_node)
         segment_node
+      end
+
+      # @param [Node] node
+      # @return [void]
+      def replace_node!(node)
+        index = @nodes.find_index { |n| n.name == node.name }
+        return if index.nil?
+
+        @nodes[index] = node
+      end
+
+      # @param [Link] link
+      # @return [void]
+      def replace_link!(link)
+        index = @links.find_index { |l| l.name == link.name }
+        return if index.nil?
+
+        @links[index] = link
       end
 
       private
@@ -105,6 +129,18 @@ module Netomox
         }
       end
       # rubocop:enable Metrics/MethodLength
+    end
+
+    # reopen networks class to add method
+    class Networks < TopoObjectBase
+      # @param [Network] network Network(layer)
+      # @return [void]
+      def replace_network!(network)
+        index = @networks.find_index { |nw| nw.name == network.name }
+        return if index.nil?
+
+        @networks[index] = network
+      end
     end
   end
 end

@@ -18,7 +18,6 @@ module ModelConductor
       # convert RFC8345 Hash to Netomox::Topology::Networks
       @int_topology = instantiate_topology_data(int_topology_data)
       @ext_topology = instantiate_topology_data(ext_topology_data)
-      @over_splice = false
     end
 
     # @return [Hash] spliced topology data
@@ -84,6 +83,7 @@ module ModelConductor
       find_supported_tp(bgp_proc_support)
     end
 
+    # insert bgp_as -> bgp_proc supports (to bgp_as node)
     # @return [void]
     def insert_supports!
       bgp_as_nw = @int_topology.find_network('bgp_as')
@@ -153,9 +153,6 @@ module ModelConductor
     # @yieldparam [Netomox::Topology::Network] int_nw Target (internal) network (specified by nw_name)
     # @yieldreturn [void]
     def splice_network!(nw_name)
-      # NOTE: Prevent the same data added multiple times by repeatedly executing without initialization.
-      return if @over_splice
-
       int_nw = @int_topology.find_network(nw_name)
       ext_nw = @ext_topology.find_network(nw_name)
 
@@ -165,11 +162,24 @@ module ModelConductor
         # found duplicated node -> overwrite it with external-AS node
         # NOTE: external-AS nodes defined in configs/<network>/<snapshot>/hosts are included internal-AS network,
         #   because batfish-query answers about them.
-        int_nw.nodes.delete_if { |int_node| int_node.name == ext_node.name } if int_nw.find_node_by_name(ext_node.name)
+        if int_nw.find_node_by_name(ext_node.name)
+          ModelConductor.logger.warn "Conflict node: #{ext_node.name}, replace it"
+          int_nw.replace_node!(ext_node)
+          next
+        end
+
         int_nw.nodes.push(ext_node)
       end
       # insert links in external network to internal network
-      int_nw.links.concat(ext_nw.links)
+      ext_nw.links.each do |ext_link|
+        if int_nw.find_link_by_name(ext_link.name)
+          ModelConductor.logger.warn "Conflict link: #{ext_link.name}, replace it"
+          int_nw.replace_link!(ext_link)
+          next
+        end
+
+        int_nw.links.push(ext_link)
+      end
 
       # splice int/ext AS according to BGP-AS topology
       bgp_as_nw = @ext_topology.find_network('bgp_as')
@@ -207,8 +217,8 @@ module ModelConductor
       # NOTE: without splicing target network, modify (write) internal topology data
       @ext_topology.networks.reject { |nw| SPLICE_TARGET_NETWORKS.include?(nw.name) }.each do |ext_network|
         if @int_topology.find_network(ext_network.name)
-          ModelConductor.logger.warn "Conflict network(layer) in int/ext network: #{ext_network.name}, ignore it."
-          @over_splice = true
+          ModelConductor.logger.warn "Conflict network(layer) in int/ext network: #{ext_network.name}, overwrite it"
+          @int_topology.replace_network!(ext_network)
           next
         end
 

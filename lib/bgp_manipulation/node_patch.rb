@@ -32,7 +32,7 @@ module ModelConductor
         %w[policy prefix-set as-path-set community-set].each do |policy_attr_key|
           next unless node_patch[NODE_ATTR_KEY].key?(policy_attr_key)
 
-          target_node[NODE_ATTR_KEY][policy_attr_key].concat(node_patch[NODE_ATTR_KEY][policy_attr_key])
+          target_node[NODE_ATTR_KEY][policy_attr_key] = node_patch[NODE_ATTR_KEY][policy_attr_key]
         end
       end
 
