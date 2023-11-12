@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'grape'
+require 'lib/bgp_manipulation/node_patch'
+require 'lib/bgp_manipulation/preferred_detector'
 
 module ModelConductor
   module ApiRoute
@@ -16,7 +18,7 @@ module ModelConductor
         network, snapshot, layer, node_patches = %i[network snapshot layer node].map { |key| params[key] }
 
         # NOTE: Currently, the POST policies API can only be executed at the bgp_proc layer.
-        error!("Layer:#{layer} is not have policy", 500) unless layer == 'bgp_proc'
+        error!("Layer:#{layer} is not bgp-proc", 500) unless layer == 'bgp_proc'
 
         # TODO: At this time, it insert json-based objects directly,
         #   but it must be converted Netomox::Topology object to operate/verify data.
@@ -25,25 +27,39 @@ module ModelConductor
         topology_data = rest_api.fetch_topology_data(network, snapshot)
         error!("Topology:#{network}/#{snapshot} is not found", 404) if topology_data.nil?
 
-        networks = topology_data['ietf-network:networks']['network']
-        layer = networks.find { |nw| nw['network-id'] == layer }
-        error!("layer:#{layer} is not found in #{network}/#{snapshot}", 404) if layer.nil?
-
-        node_patches.each do |node_patch|
-          target_node = layer['node'].find { |node| node['node-id'] == node_patch['node-id'] }
-          error!("Node:#{node_patch['node-id']} is not found in #{layer}", 500) if target_node.nil?
-
-          attr_key = 'mddo-topology:bgp-proc-node-attributes'
-          # NOTE: concatenate policies
-          %w[policy prefix-set as-path-set community-set].each do |policy_attr_key|
-            next unless node_patch[attr_key].key?(policy_attr_key)
-
-            target_node[attr_key][policy_attr_key].concat(node_patch[attr_key][policy_attr_key])
-          end
-        end
+        model_patcher = ModelPatcher.new(topology_data)
+        patched_topology_data = model_patcher.patch_nodes(layer, node_patches)
+        error!(patched_topology_data[:message], patched_topology_data[:error]) if patched_topology_data.key?(:error)
 
         # overwrite (response)
-        rest_api.post_topology_data(network, snapshot, topology_data)
+        rest_api.post_topology_data(network, snapshot, patched_topology_data)
+      end
+
+      desc 'Push preferred node'
+      params do
+        requires :ext_asn, type: Integer, desc: 'ASN of external-AS'
+        requires :node, type: String, desc: 'Node name (internal, L3)'
+        requires :interface, type: String, desc: 'Interface name (Internal, L3)'
+      end
+      post 'preferred_speaker' do
+        network, snapshot, layer = %i[network snapshot layer].map { |key| params[key] }
+        ext_asn, l3_node, l3_intf = %i[ext_asn node interface].map { |key| params[key] }
+
+        # NOTE: Currently, the POST policies API can only be executed at the bgp_proc layer.
+        error!("Layer:#{layer} is not have policy", 500) unless layer == 'bgp_proc'
+
+        # TODO: At this time, use json-based objects directly,
+        #   because bgp-policies is cannot convert Topology object (NOT implemented yet)
+
+        topology_data = rest_api.fetch_topology_data(network, snapshot)
+        error!("Topology:#{network}/#{snapshot} is not found", 404) if topology_data.nil?
+
+        preferred_detector = PreferredDetector.new(topology_data)
+        patched_topology_data = preferred_detector.detect_preferred_peer(layer, ext_asn, l3_node, l3_intf)
+        error!(patched_topology_data[:message], patched_topology_data[:error]) if patched_topology_data.key?(:error)
+
+        # overwrite (response)
+        rest_api.post_topology_data(network, snapshot, patched_topology_data)
       end
     end
   end
