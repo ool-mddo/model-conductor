@@ -59,8 +59,7 @@ module ModelConductor
       message = "layer:#{layer_name}, ext-bgp-speaker ASN check failed, mismatch ASN:#{ext_asn}"
       return { error: 500, message: } if preferred_intf.nil?
 
-      preferred_node[NODE_ATTR_KEY]['flag'].reject! { |f| f == 'ext-bgp-speaker' }
-      preferred_node[NODE_ATTR_KEY]['flag'].push('ext-bgp-speaker-preferred')
+      preferred_intf[TP_ATTR_KEY]['flag'].push('ext-bgp-speaker-preferred')
 
       @topology
     end

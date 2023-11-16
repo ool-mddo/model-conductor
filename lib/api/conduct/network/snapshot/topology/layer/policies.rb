@@ -35,13 +35,13 @@ module ModelConductor
         rest_api.post_topology_data(network, snapshot, patched_topology_data)
       end
 
-      desc 'Push preferred node'
+      desc 'Push preferred peer'
       params do
         requires :ext_asn, type: Integer, desc: 'ASN of external-AS'
         requires :node, type: String, desc: 'Node name (internal, L3)'
         requires :interface, type: String, desc: 'Interface name (Internal, L3)'
       end
-      post 'preferred_speaker' do
+      post 'preferred_peer' do
         network, snapshot, layer = %i[network snapshot layer].map { |key| params[key] }
         ext_asn, l3_node, l3_intf = %i[ext_asn node interface].map { |key| params[key] }
 
