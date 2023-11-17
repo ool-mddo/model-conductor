@@ -17,6 +17,8 @@ module ModelConductor
     TP_SUPPORT_KEY = 'supporting-termination-point'
     # alias: tp attr key
     TP_ATTR_KEY = 'mddo-topology:bgp-proc-termination-point-attributes'
+    # Preferred flag for tp (peer)
+    TP_PREFERRED_FLAG = 'ext-bgp-speaker-preferred'
 
     # @param [Hash] topology_data RFC8345 topology data (all layers)
     def initialize(topology_data)
@@ -24,7 +26,7 @@ module ModelConductor
       @networks = topology_data['ietf-network:networks']['network'] # alias
     end
 
-    # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
 
     # @param [String] layer_name Target layer name (== 'bgp_proc')
     # @param [Integer] ext_asn External ASN
@@ -36,6 +38,8 @@ module ModelConductor
       layer = @networks.find { |nw| nw['network-id'] == layer_name }
       message = "Layer:#{layer_name} is not found in topology"
       return { error: 500, message: } if layer.nil?
+
+      clear_all_preferred_flag(layer)
 
       bgp_proc_node = find_node_with_support(layer, 'layer3', l3_node, l3_intf)
       message = "Layer:#{layer_name}, Node not found that supports layer3/#{l3_node}"
@@ -59,13 +63,23 @@ module ModelConductor
       message = "layer:#{layer_name}, ext-bgp-speaker ASN check failed, mismatch ASN:#{ext_asn}"
       return { error: 500, message: } if preferred_intf.nil?
 
-      preferred_intf[TP_ATTR_KEY]['flag'].push('ext-bgp-speaker-preferred')
+      preferred_intf[TP_ATTR_KEY]['flag'].push(TP_PREFERRED_FLAG)
 
       @topology
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     private
+
+    # @param [Hash] layer Layer data (RFC8345)
+    # @return [void]
+    def clear_all_preferred_flag(layer)
+      layer[LAYER_NODE_KEY].each do |node|
+        node[NODE_TP_KEY].each do |tp|
+          tp[TP_ATTR_KEY]['flag'].reject! { |flag| flag == TP_PREFERRED_FLAG }
+        end
+      end
+    end
 
     # @param [Hash] node Node data (RFC8345)
     # @param [String] preferred_intf Interface name to be preferred
