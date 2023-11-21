@@ -35,7 +35,7 @@ module ModelConductor
         # patch for term-points
         if node_patch.key?(NODE_TP_KEY)
           tp_patch_result = patch_term_points(target_node, node_patch[NODE_TP_KEY])
-          return tp_patch_result if tp_patch_result[:error] >= 500
+          return tp_patch_result if tp_patch_result[:error] >= 400
         end
 
         # no patch (for node)
@@ -63,7 +63,7 @@ module ModelConductor
 
     # @param [Hash] target_node Node to patch (RFC8345 hash)
     # @param [Array<Hash>] tp_patches Patch data (RFC8345-LIKE hash)
-    # @return [Hash] error (no error if nil)
+    # @return [Hash] error
     def patch_term_points(target_node, tp_patches)
       tp_patches.each do |tp_patch|
         target_tp = target_node[NODE_TP_KEY].find { |tp| tp['tp-id'] == tp_patch['tp-id'] }
