@@ -153,6 +153,68 @@ curl -s -X POST -H "Content-Type: application/json" \
   http://localhost:9292/conduct/biglobe_deform/original_asis/splice_topology
 ```
 
+### Add node/term-point attribute data
+
+> [!NOTE]
+> Currently, for bgp-proc only (to "patch" bgp policy or other attribute data).
+> It used in bgp-policy-parser in PNI use-case of copy-to-emulated-env demo.
+
+Add node/term-point attribute.
+
+* POST `/conduct/<network>/<snapshot>/topology/<layer>/policies`
+  * `node`: node/term-point attribute (RFC8345-json format)
+
+<details>
+<summary>Patch data (bgp-policy-patch.json)</summary>
+
+```json
+hagiwara@dev03:~/ool-mddo/playground/demo/copy_to_emulated_env$ cat bgp-policy-patch.json
+{
+    "node": [
+        {
+            "node-id": "192.168.255.7",
+            "ietf-network-topology:termination-point": [
+                {
+                    "tp-id": "peer_192.168.255.2",
+                    "mddo-topology:bgp-proc-termination-point-attributes": {
+                        "import-policy": ["ibgp-export"]
+                    }
+                }
+            ]
+        }
+    ]
+}
+```
+
+</details>
+
+```shell
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d @bgp-policy-patch.json \
+  http://localhost:15000/conduct/biglobe_deform/original_asis/topology/bgp_proc/policies
+```
+
+### Set bgp-proc preferred-peer attribute
+
+> [!NOTE]
+> Currently, for bgp-proc only (to "patch" bgp policy or other attribute data).
+> It used in step2-2 scenario script in PNI use-case of copy-to-emulated-env demo.
+
+Set preferred peer of external-AS bgp speaker using external AS-number and local node/interface.
+
+It find opposite bgp speaker in external-AS with local bgp speaker (node/interface name), and set `ext-bgp-speaker-preferred` flag it. In demo scenario, configuration generator uses the flag to switch bgp policy.
+
+* POST `/conduct/<network>/<snapshot>/topology/<layer>/preferred_peer`
+  * `ext_asn`: External AS number
+  * `node`: Node name (Local ASBR)
+  * `interface`: Interface name (in `node`)
+
+```shell
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"ext_asn":65550, "node":"edge-tk01", "interface":"ge-0/0/3.0"}' \
+  http://localhost:15000/conduct/biglobe_deform/original_asis/topology/bgp_proc/preferred_peer
+```
+
 ## Development
 
 ### Optional: Build model-conductor container
