@@ -168,7 +168,6 @@ Add node/term-point attribute.
 <summary>Patch data (bgp-policy-patch.json)</summary>
 
 ```json
-hagiwara@dev03:~/ool-mddo/playground/demo/copy_to_emulated_env$ cat bgp-policy-patch.json
 {
     "node": [
         {
@@ -202,7 +201,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 Set preferred peer of external-AS bgp speaker using external AS-number and local node/interface.
 
-It find opposite bgp speaker in external-AS with local bgp speaker (node/interface name), and set `ext-bgp-speaker-preferred` flag it. In demo scenario, configuration generator uses the flag to switch bgp policy.
+It find opposite bgp speaker in external-AS with local bgp speaker (node/interface name), and set `ext-bgp-speaker-preferred` flag to its attribute. In demo scenario, configuration generator uses the flag to switch bgp policy.
 
 * POST `/conduct/<network>/<snapshot>/topology/<layer>/preferred_peer`
   * `ext_asn`: External AS number
