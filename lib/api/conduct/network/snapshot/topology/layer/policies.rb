@@ -51,10 +51,10 @@ module ModelConductor
         # TODO: At this time, use json-based objects directly,
         #   because bgp-policies is cannot convert Topology object (NOT implemented yet)
 
-        topology_data = rest_api.fetch_topology_data(network, snapshot)
-        error!("Topology:#{network}/#{snapshot} is not found", 404) if topology_data.nil?
+        topology = rest_api.fetch_topology_object(network, snapshot)
+        error!("Topology:#{network}/#{snapshot} is not found", 404) if topology.nil?
 
-        preferred_detector = PreferredDetector.new(topology_data)
+        preferred_detector = PreferredDetector.new(topology)
         patched_topology_data = preferred_detector.detect_preferred_peer(layer, ext_asn, l3_node, l3_intf)
         error!(patched_topology_data[:message], patched_topology_data[:error]) if patched_topology_data.key?(:error)
 
