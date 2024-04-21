@@ -193,27 +193,6 @@ curl -s -X POST -H 'Content-Type: application/json' \
   http://localhost:15000/conduct/biglobe_deform/original_asis/topology/bgp_proc/policies
 ```
 
-### Set bgp-proc preferred-peer attribute
-
-> [!NOTE]
-> Currently, for bgp-proc only (to "patch" bgp policy or other attribute data).
-> It used in step2-2 scenario script in PNI use-case of copy-to-emulated-env demo.
-
-Set preferred peer of external-AS bgp speaker using external AS-number and local node/interface.
-
-It find opposite bgp speaker in external-AS with local bgp speaker (node/interface name), and set `ext-bgp-speaker-preferred` flag to its attribute. In demo scenario, configuration generator uses the flag to switch bgp policy.
-
-* POST `/conduct/<network>/<snapshot>/topology/<layer>/preferred_peer`
-  * `ext_asn`: External AS number
-  * `node`: Node name (Local ASBR)
-  * `interface`: Interface name (in `node`)
-
-```shell
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"ext_asn":65550, "node":"edge-tk01", "interface":"ge-0/0/3.0"}' \
-  http://localhost:15000/conduct/biglobe_deform/original_asis/topology/bgp_proc/preferred_peer
-```
-
 ## Development
 
 ### Optional: Build model-conductor container
