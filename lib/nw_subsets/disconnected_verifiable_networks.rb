@@ -2,9 +2,9 @@
 
 require 'netomox'
 require 'forwardable'
-require_relative './network_sets'
-require_relative './network_set'
-require_relative './network_subsets'
+require_relative 'network_sets'
+require_relative 'network_set'
+require_relative 'network_subsets'
 
 module Netomox
   module Topology
