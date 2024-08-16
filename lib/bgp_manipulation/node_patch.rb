@@ -24,13 +24,19 @@ module ModelConductor
     #   Error data : { error: <http error status code>, message: <string> }
     def patch_nodes(layer_name, node_patches)
       layer = @networks.find { |nw| nw['network-id'] == layer_name }
-      message = "Layer:#{layer_name} is not found in topology"
-      return { error: 500, message: } if layer.nil?
+      if layer.nil?
+        message = "Layer:#{layer_name} is not found in topology"
+        ModelConductor.logger.error message
+        return { error: 500, message: }
+      end
 
       node_patches.each do |node_patch|
         target_node = layer['node'].find { |node| node['node-id'] == node_patch['node-id'] }
-        message = "Node:#{node_patch['node-id']} is not found in #{layer_name}"
-        return { error: 500, message: } if target_node.nil?
+        if target_node.nil?
+          message = "Node:#{node_patch['node-id']} is not found in #{layer_name}"
+          ModelConductor.logger.error message
+          return { error: 500, message: }
+        end
 
         # patch for term-points
         if node_patch.key?(NODE_TP_KEY)
@@ -45,7 +51,8 @@ module ModelConductor
         # NOTE: replace(overwrite) each policy
         node_patch[NODE_ATTR_KEY].each_key do |patch_attr_key|
           unless target_node[NODE_ATTR_KEY].key?(patch_attr_key)
-            logger.error "Attr key mismatch:#{patch_attr_key}: #{target_node['node-id']}"
+            message = "Attr key mismatch:#{patch_attr_key}: #{target_node['node-id']}"
+            ModelConductor.logger.error message
             next
           end
 
@@ -67,8 +74,11 @@ module ModelConductor
     def patch_term_points(target_node, tp_patches)
       tp_patches.each do |tp_patch|
         target_tp = target_node[NODE_TP_KEY].find { |tp| tp['tp-id'] == tp_patch['tp-id'] }
-        message = "TP:#{tp_patch['tp-id']} in Node:#{tp_patch['node-id']} is not found"
-        return { error: 500, message: } if target_tp.nil?
+        if target_tp.nil?
+          message = "TP:#{tp_patch['tp-id']} in Node:#{tp_patch['node-id']} is not found"
+          ModelConductor.logger.error message
+          return { error: 500, message: }
+        end
 
         # no patch (for term-point)
         next unless tp_patch.key?(TP_ATTR_KEY)
@@ -77,7 +87,8 @@ module ModelConductor
         # NOTE: replace(overwrite) each policy
         tp_patch[TP_ATTR_KEY].each_key do |patch_attr_key|
           unless target_tp[TP_ATTR_KEY].key?(patch_attr_key)
-            logger.error "Attr key mismatch:#{patch_attr_key}: #{target_node['node-id']}[#{target_tp['tp-id']}]"
+            message = "Attr key mismatch:#{patch_attr_key}: #{target_node['node-id']}[#{target_tp['tp-id']}]"
+            ModelConductor.logger.error message
             next
           end
 

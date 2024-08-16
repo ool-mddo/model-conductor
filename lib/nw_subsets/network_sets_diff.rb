@@ -3,7 +3,7 @@
 require 'forwardable'
 require 'json'
 require 'netomox'
-require_relative './disconnected_verifiable_networks'
+require_relative 'disconnected_verifiable_networks'
 
 # 4fc8345 based topology operations
 module ModelConductor
