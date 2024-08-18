@@ -33,23 +33,36 @@ module ModelConductor
   class CandidateTopologyGenerator
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
-    def initialize(network, snapshot)
+    # @param [Hash] usecase_data
+    def initialize(network, snapshot, usecase_data)
       @network = network
       @snapshot = snapshot
+      @usecase = usecase_data
     end
-
-    # rubocop:disable Metrics/MethodLength
 
     # @param [Integer] candidate_index candidate index
     # @return [nil, Netomox::Topology::Networks]
     def generate_candidate_topologies(candidate_index)
+      unless @usecase['name'] == 'pni_te'
+        ModelConductor.logger.error "Unsupported usecase:#{@usecase['name']}"
+        return nil
+      end
+
+      generate_candidate_for_pni_te(candidate_index)
+    end
+
+    private
+
+    # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+
+    # @param [Integer] candidate_index candidate index
+    # @return [nil, Netomox::Topology::Networks]
+    def generate_candidate_for_pni_te(candidate_index)
       # always reload
       base_topology = read_base_topology
-
-      # TODO: src_asn and target node be given by usecase parameters
-      #   & convert it bgp_proc node id (edge-tk01 -> 192.168.255.5)
-      l3_node_name = 'edge-tk01'
-      src_asn = 65_550
+      # usecase params
+      l3_node_name = @usecase['params']['source_as']['preferred_peer']['node']
+      src_asn = @usecase['params']['source_as']['asn']
 
       result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
       if result[:error]
@@ -68,9 +81,7 @@ module ModelConductor
       # return modified topology data as candidate_i
       base_topology
     end
-    # rubocop:enable Metrics/MethodLength
-
-    private
+    # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
 
     # rubocop:disable Metrics/MethodLength
 

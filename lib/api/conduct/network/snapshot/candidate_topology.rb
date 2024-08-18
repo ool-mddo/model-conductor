@@ -10,14 +10,14 @@ module ModelConductor
       namespace 'candidate_topology' do
         desc 'Generate and save several candidate topologies'
         params do
-          requires :usecase, type: String, desc: 'Usecase name'
           requires :candidate_number, type: Integer, desc: 'Candidate number', default: 1
+          requires :usecase, type: Hash, desc: 'Usecase name and parameters'
         end
         post do
           network, snapshot = %i[network snapshot].map { |key| params[key] }
 
           info_list = []
-          generator = CandidateTopologyGenerator.new(network, snapshot)
+          generator = CandidateTopologyGenerator.new(network, snapshot, params[:usecase])
           (1..params[:candidate_number]).each do |candidate_index|
             candidate_topology = generator.generate_candidate_topologies(candidate_index)
             next if candidate_topology.nil?
