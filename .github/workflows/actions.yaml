@@ -16,8 +16,12 @@ jobs:
         with:
           ruby-version: '3.1'
 
-      - name: Install dependencies
-        run: bundle install
+      - name: Set up Bundler with GitHub Packages
+        env:
+          BUNDLE_RUBYGEMS__PKG__GITHUB__COM: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          bundle config set --local BUNDLE_RUBYGEMS__PKG__GITHUB__COM $BUNDLE_RUBYGEMS__PKG__GITHUB__COM
+          bundle install
 
       - name: Run RuboCop
         run: bundle exec rake rubocop
