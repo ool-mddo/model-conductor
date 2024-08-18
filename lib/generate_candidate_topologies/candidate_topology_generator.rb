@@ -17,14 +17,6 @@ module Netomox
         end
       end
     end
-
-    # patch for prefix-set
-    class MddoBgpPrefixSet
-      # @return [Boolean]
-      def empty?
-        prefixes.nil? || prefixes.empty?
-      end
-    end
   end
 end
 
@@ -70,8 +62,9 @@ module ModelConductor
         return nil
       end
 
+      # data check before update configs
       if result[:prefix_set].prefixes.at(candidate_index).nil?
-        ModelConductor.logger.warn("Can't generate candidate pattern for candidate_#{candidate_index}")
+        ModelConductor.logger.warn("Can't generate candidate for candidate_#{candidate_index}")
         return nil
       end
 
@@ -106,8 +99,8 @@ module ModelConductor
 
       prefix_set_name = "as#{src_asn}-advd-ipv4"
       prefix_set = find_prefix_set(bgp_proc_node, prefix_set_name)
-      if prefix_set.nil? || prefix_set.empty?
-        message = "prefix-set: #{prefix_set_name} is not found or empty in node:#{bgp_proc_node.name}"
+      if prefix_set.nil?
+        message = "prefix-set: #{prefix_set_name} is not found in node:#{bgp_proc_node.name}"
         return { error: true, message: }
       end
 
