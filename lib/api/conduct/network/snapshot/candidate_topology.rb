@@ -16,8 +16,21 @@ module ModelConductor
         post do
           network, snapshot = %i[network snapshot].map { |key| params[key] }
 
+          # call usecase data fetch api and pass it to candidate topology generator
+          #
+          # params[:usecase]              => usecase_params
+          # {                                {
+          #   name: "usecase-name",            name: "usecase_name",
+          #   sources: ["src1", "src2"] ...... src1: <(GET /usecases/<usecase_name>/<src1>)
+          # }                             :... src2: <(GET /usecases/<usecase_name>/<src2>)
+          #                                  }
+          usecase_params = { name: params[:usecase][:name] }
+          params[:usecase][:sources].each do |source|
+            usecase_params[source.to_sym] = rest_api.fetch_usecase_data(usecase_params[:name], source)
+          end
+
           info_list = []
-          generator = CandidateTopologyGenerator.new(network, snapshot, params[:usecase])
+          generator = CandidateTopologyGenerator.new(network, snapshot, usecase_params)
           (1..params[:candidate_number]).each do |candidate_index|
             candidate_topology = generator.generate_candidate_topologies(candidate_index)
             next if candidate_topology.nil?

@@ -35,8 +35,8 @@ module ModelConductor
     # @param [Integer] candidate_index candidate index
     # @return [nil, Netomox::Topology::Networks]
     def generate_candidate_topologies(candidate_index)
-      unless @usecase['name'] == 'pni_te'
-        ModelConductor.logger.error "Unsupported usecase:#{@usecase['name']}"
+      unless @usecase[:name] == 'pni_te'
+        ModelConductor.logger.error "Unsupported usecase: #{@usecase[:name]}"
         return nil
       end
 
@@ -53,8 +53,8 @@ module ModelConductor
       # always reload
       base_topology = read_base_topology
       # usecase params
-      l3_node_name = @usecase['params']['source_as']['preferred_peer']['node']
-      src_asn = @usecase['params']['source_as']['asn']
+      l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
+      src_asn = @usecase[:params][:source_as][:asn]
 
       result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
       if result[:error]
