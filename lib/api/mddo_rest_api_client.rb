@@ -13,6 +13,8 @@ module ModelConductor
     BATFISH_WRAPPER_HOST = ENV.fetch('BATFISH_WRAPPER_HOST', 'batfish-wrapper:5000')
     # Backend API (netomox-exp)
     NETOMOX_EXP_HOST = ENV.fetch('NETOMOX_EXP_HOST', 'netomox-exp:9292')
+    # top level resource to switch netomox-exp
+    NETOMOX_EXP_URL_RESOURCE = %w[topologies usecases].freeze
 
     # @param [Logger] logger
     def initialize(logger)
@@ -226,12 +228,21 @@ module ModelConductor
       fetch_response(response)
     end
 
+    # @param [String] usecase Usecase name
+    # @param [String] data_api Data name (API name)
+    # @return [Object, nil]
+    def fetch_usecase_data(usecase, data_api)
+      response = fetch("/usecases/#{usecase}/#{data_api}")
+      fetch_response(response)
+    end
+
     private
 
     # @param [String] api_path PATH of REST API
     # @return [String] url
     def dispatch_url(api_path)
-      api_host = api_path =~ %r{^/?topologies/*} ? NETOMOX_EXP_HOST : BATFISH_WRAPPER_HOST
+      first_api_path = api_path.split('/').reject(&:empty?)[0]
+      api_host = NETOMOX_EXP_URL_RESOURCE.include?(first_api_path) ? NETOMOX_EXP_HOST : BATFISH_WRAPPER_HOST
       "http://#{api_host}/#{api_path}"
     end
 
