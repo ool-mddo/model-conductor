@@ -41,7 +41,13 @@ module ModelConductor
     # @param [Integer] combination_count Combination depth
     # @param [Netomox::Topology::MddoBgpPrefixSet] prefix_set
     # @param [Integer] expected_max_bandwidth Target rate (Mbps)
-    # @return [Array<Hash>]
+    # @return [Array<Hash>] Aggregated flows
+    #   e.g.)
+    # [
+    #   {:prefixes=>["10.100.0.0/16", "10.120.0.0/17", "10.130.0.0/21"], :rate=>8017.11, :diff=>17.1},
+    #   {:prefixes=>["10.100.0.0/16", "10.110.0.0/20", "10.130.0.0/21"], :rate=>8621.14, :diff=>621.13},
+    #   ...
+    # ]
     def aggregated_flows_by_prefix(combination_count, prefix_set, expected_max_bandwidth)
       prefix_table = rows_by_prefixes(prefix_set)
       prefix_combinations = enumerate_combinations(prefix_table, combination_count)
