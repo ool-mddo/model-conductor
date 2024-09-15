@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'netomox'
+require_relative 'flow_data_table'
 
 module Netomox
   module Topology
@@ -29,6 +30,12 @@ module ModelConductor
     def initialize(network, snapshot, usecase_data)
       @network = network
       @snapshot = snapshot
+      # @see ModelConductor::ApiRoute::CandidateTopology
+      # {
+      #   "src1": <(GET /usecases/<usecase_name>/<src1>),
+      #   "src2": <(GET /usecases/<usecase_name>/<src2>),
+      #   ...
+      # }
       @usecase = usecase_data
     end
 
@@ -55,6 +62,10 @@ module ModelConductor
       # usecase params
       l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
       src_asn = @usecase[:params][:source_as][:asn]
+      target_node = @usecase[:params][:expected_traffic][:original_targets].find { |t| t[:node] == l3_node_name }
+      # NOTE: 10Gbps interface (TODO: interface type, wire late checking)
+      max_bandwidth = target_node[:expected_max_bandwidth] * 10_000
+      flow_data_table = FlowDataTable.new(@usecase[:flow_data])
 
       result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
       if result[:error]
@@ -62,19 +73,26 @@ module ModelConductor
         return nil
       end
 
-      # data check before update configs
-      if result[:prefix_set].prefixes.at(candidate_index).nil?
-        ModelConductor.logger.warn("Can't generate candidate for candidate_#{candidate_index}")
-        return nil
-      end
-
       # update configs
-      result[:prefix_set].prefixes.delete_at(candidate_index - 1)
+      prefix_set = result[:prefix_set]
+      combination_count = prefix_set.prefixes.length # MAX: full-combinations
+      aggregated_flows = flow_data_table.aggregated_flows_by_prefix(combination_count, prefix_set, max_bandwidth)
+      update_prefixes_for_pni_te!(candidate_index, result[:prefix_set], aggregated_flows)
 
       # return modified topology data as candidate_i
       base_topology
     end
     # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
+
+    # @param [Integer] candidate_index candidate index
+    # @param [Netomox::Topology::MddoBgpPrefixSet] prefix_set
+    # @param [Array<Hash>] aggregated_flows
+    def update_prefixes_for_pni_te!(candidate_index, prefix_set, aggregated_flows)
+      warn "# DEBUG: aggregated_flows: #{aggregated_flows}"
+      prefix_set.prefixes.select! do |prefix|
+        aggregated_flows[candidate_index - 1][:prefixes].include?(prefix.prefix)
+      end
+    end
 
     # rubocop:disable Metrics/MethodLength
 
