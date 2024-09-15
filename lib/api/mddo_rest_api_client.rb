@@ -138,7 +138,7 @@ module ModelConductor
 
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
-    # @param [Hash] (Optional) topology_data Topology data to post,
+    # @param [Hash] topology_data (Optional) Topology data to post,
     #   empty: generate snapshot data from query data,
     #   exist "topology_data": overwrite topology data
     # @return [Hash, nil] topology data

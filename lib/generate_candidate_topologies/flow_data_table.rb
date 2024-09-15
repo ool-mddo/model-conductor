@@ -12,7 +12,7 @@ module ModelConductor
     attr_reader :source, :dest, :rate
 
     # @param [String] source Source prefix
-    # @param [String] dest, Destination prefix
+    # @param [String] dest Destination prefix
     # @param [String, Numeric] rate Traffic rate
     def initialize(source: '', dest: '', rate: -1)
       @source = source
@@ -20,7 +20,7 @@ module ModelConductor
       @rate = Float(rate)
     end
 
-    # @param [String]
+    # @return [String]
     def to_s
       "#{@source} -> #{@dest}, #{@rate}"
     end
@@ -33,7 +33,7 @@ module ModelConductor
       @rows = flow_data.map { |flow| FlowDataTableRow.new(**flow) }
     end
 
-    # @param [String]
+    # @return [String]
     def to_s
       @rows.map(&:to_s)
     end

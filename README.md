@@ -190,7 +190,23 @@ Add node/term-point attribute.
 ```shell
 curl -s -X POST -H 'Content-Type: application/json' \
   -d @bgp-policy-patch.json \
-  http://localhost:15000/conduct/biglobe_deform/original_asis/topology/bgp_proc/policies
+  http://localhost:9292/conduct/biglobe_deform/original_asis/topology/bgp_proc/policies
+```
+
+### Generate candidate config
+
+Generate candidate configs from original_asis snapshot
+
+* POST `/conduct/<network>/<snapshot>/candidate_topology`
+  * `candidate_number`: Number of candidate configs
+  * `usecase`: Usecase parameter
+    * `name`: Usecase name
+    * `sources`: Data sources for the usecase
+
+```shell
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"candidate_number": 3, "usecase": { "name": "pni_te", "sources": ["params", "flow_data"]}}' \
+  http://localhost:9292/conduct/mddo-bgp/original_asis/candidate_topology
 ```
 
 ## Development
