@@ -229,10 +229,11 @@ module ModelConductor
     end
 
     # @param [String] usecase Usecase name
+    # @param [String] network Network name
     # @param [String] data_api Data name (API name)
     # @return [Object, nil]
-    def fetch_usecase_data(usecase, data_api)
-      response = fetch("/usecases/#{usecase}/#{data_api}")
+    def fetch_usecase_data(usecase, network, data_api)
+      response = fetch("/usecases/#{usecase}/#{network}/#{data_api}")
       fetch_response(response)
     end
 

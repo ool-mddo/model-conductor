@@ -26,7 +26,10 @@ module ModelConductor
           #                                  }
           usecase_params = { name: params[:usecase][:name] }
           params[:usecase][:sources].each do |source|
-            usecase_params[source.to_sym] = rest_api.fetch_usecase_data(usecase_params[:name], source)
+            # NOTE: "flows/foo" in sources -> refers as :flow_data
+            #   so, if there are several "flows/*" in sources, last one is in operation.
+            key = source =~ %r{flows/.+} ? :flow_data : source.to_sym
+            usecase_params[key] = rest_api.fetch_usecase_data(usecase_params[:name], network, source)
           end
 
           # generate candidate topologies
