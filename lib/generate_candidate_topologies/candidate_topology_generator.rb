@@ -60,7 +60,6 @@ module ModelConductor
         ModelConductor.logger.warn "Candidate number to set #{aggregated_flows.length} because flows too little"
         candidate_number = aggregated_flows.length
       end
-
       (1..candidate_number).map do |candidate_index|
         target_flow = aggregated_flows[candidate_index - 1]
         candidate_topology = generate_candidate_for_pni_te(target_flow)
@@ -86,8 +85,9 @@ module ModelConductor
       l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
       src_asn = @usecase[:params][:source_as][:asn]
       target_node = @usecase[:params][:expected_traffic][:original_targets].find { |t| t[:node] == l3_node_name }
-      # NOTE: 10Gbps interface (TODO: interface type, wire late checking)
-      max_bandwidth = target_node[:expected_max_bandwidth] * 10_000
+      # NOTE: max_bandwidth is bps string (like "0.8e9"),
+      #   convert it to Mbps value (float number) because rate in flow-data is Mbps value
+      max_bandwidth = target_node[:expected_max_bandwidth].to_f / 1e6
       flow_data_table = FlowDataTable.new(@usecase[:flow_data])
 
       result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
