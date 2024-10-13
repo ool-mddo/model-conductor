@@ -138,7 +138,7 @@ module ModelConductor
 
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
-    # @param [Hash] (Optional) topology_data Topology data to post,
+    # @param [Hash] topology_data (Optional) Topology data to post,
     #   empty: generate snapshot data from query data,
     #   exist "topology_data": overwrite topology data
     # @return [Hash, nil] topology data
@@ -229,10 +229,11 @@ module ModelConductor
     end
 
     # @param [String] usecase Usecase name
+    # @param [String] network Network name
     # @param [String] data_api Data name (API name)
     # @return [Object, nil]
-    def fetch_usecase_data(usecase, data_api)
-      response = fetch("/usecases/#{usecase}/#{data_api}")
+    def fetch_usecase_data(usecase, network, data_api)
+      response = fetch("/usecases/#{usecase}/#{network}/#{data_api}")
       fetch_response(response)
     end
 

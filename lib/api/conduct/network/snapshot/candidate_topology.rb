@@ -26,23 +26,28 @@ module ModelConductor
           #                                  }
           usecase_params = { name: params[:usecase][:name] }
           params[:usecase][:sources].each do |source|
-            usecase_params[source.to_sym] = rest_api.fetch_usecase_data(usecase_params[:name], source)
+            # NOTE: "flows/foo" in sources -> refers as :flow_data
+            #   so, if there are several "flows/*" in sources, last one is in operation.
+            key = source =~ %r{flows/.+} ? :flow_data : source.to_sym
+            usecase_params[key] = rest_api.fetch_usecase_data(usecase_params[:name], network, source)
           end
 
-          info_list = []
+          # generate candidate topologies
           generator = CandidateTopologyGenerator.new(network, snapshot, usecase_params)
-          (1..params[:candidate_number]).each do |candidate_index|
-            candidate_topology = generator.generate_candidate_topologies(candidate_index)
-            next if candidate_topology.nil?
+          candidates = generator.generate_candidate_topologies(params[:candidate_number])
+          error!('Error in generate candidate topology', 500) if candidates.nil?
 
-            # save candidate_i topology
-            candidate_snapshot_name = "original_candidate_#{candidate_index}"
-            rest_api.post_topology_data(network, candidate_snapshot_name, candidate_topology.to_data)
-            info_list.push({ network:, snapshot: candidate_snapshot_name })
+          # save each candidate topology
+          candidates.each do |candidate|
+            rest_api.post_topology_data(candidate[:network], candidate[:snapshot], candidate[:topology])
           end
 
           # response
-          info_list
+          # ignore topology data (too fat)
+          candidates.map! do |candidate|
+            candidate.delete(:topology)
+            candidate
+          end
         end
       end
     end
