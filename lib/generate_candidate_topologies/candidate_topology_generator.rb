@@ -44,7 +44,7 @@ module ModelConductor
     # @param [Integer] candidate_number Number of candidates
     # @return [nil, Array<Hash>]
     def generate_candidate_topologies(candidate_number)
-      unless @usecase[:name] == 'pni_te'
+      unless %w[pni_te multi_region_te].include?(@usecase[:name])
         ModelConductor.logger.error "Unsupported usecase: #{@usecase[:name]}"
         return nil
       end
