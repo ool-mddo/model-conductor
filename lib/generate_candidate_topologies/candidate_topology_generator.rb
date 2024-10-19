@@ -41,9 +41,10 @@ module ModelConductor
 
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
 
+    # @param [Integer] phase_number Phase number
     # @param [Integer] candidate_number Number of candidates
     # @return [nil, Array<Hash>]
-    def generate_candidate_topologies(candidate_number)
+    def generate_candidate_topologies(phase_number, candidate_number)
       unless %w[pni_te multi_region_te].include?(@usecase[:name])
         ModelConductor.logger.error "Unsupported usecase: #{@usecase[:name]}"
         return nil
@@ -65,7 +66,8 @@ module ModelConductor
         candidate_topology = generate_candidate_for_pni_te(target_flow)
         {
           network: @network,
-          snapshot: "original_candidate_#{candidate_index}",
+          benchmark_snapshot: @snapshot,
+          snapshot: "original_candidate_#{phase_number}#{candidate_index}",
           topology: candidate_topology.to_data,
           candidate_condition: target_flow
         }
