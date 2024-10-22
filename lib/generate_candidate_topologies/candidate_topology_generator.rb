@@ -2,24 +2,7 @@
 
 require 'netomox'
 require_relative 'flow_data_table'
-
-module Netomox
-  module Topology
-    # patch for Network
-    class Network
-      # @param [String] nw_ref Supporting network name
-      # @param [String] node_ref Supporting node name
-      # @return [nil, Netomox::Topology::Node]
-      def find_node_by_support(nw_ref, node_ref)
-        @nodes.find do |node|
-          node.supports.find do |support|
-            support.ref_network == nw_ref && support.ref_node == node_ref
-          end
-        end
-      end
-    end
-  end
-end
+require_relative 'netomox_topology'
 
 module ModelConductor
   # rubocop:disable Metrics/ClassLength
@@ -65,6 +48,12 @@ module ModelConductor
 
     private
 
+    # @param [String] src_asn Source AS number
+    # @return [String]
+    def target_prefix_set_name(src_asn)
+      "as#{src_asn}-advd-ipv4"
+    end
+
     # @param [Netomox::Topology::MddoBgpPrefixSet] prefix_set
     # @param [Integer] policy_index Index number to omit from prefix-set
     # @return [nil, Netomox::Topology::MddoBgpPrefix]
@@ -86,7 +75,7 @@ module ModelConductor
       l3_node_name = @usecase[:phase_candidate_opts][:node]
       src_asn = @usecase[:params][:source_as][:asn]
 
-      result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
+      result = base_topology.pickup_prefix_set(l3_node_name, target_prefix_set_name(src_asn))
       if result[:error]
         ModelConductor.logger.error result[:message]
         return nil
@@ -129,7 +118,7 @@ module ModelConductor
     # @param [Integer] candidate_number Number of candidates
     # @return [nil, Array<Hash>] nil for error
     def candidate_topologies_by_flows(phase_number, candidate_number)
-      aggregated_flows = generate_aggregated_flows_for_pni_te
+      aggregated_flows = generate_aggregated_flows_for_te
       if aggregated_flows.nil?
         ModelConductor.logger.error "Cannot operate aggregated flows in usecase:#{@usecase[:name]}"
         return nil
@@ -139,6 +128,7 @@ module ModelConductor
         ModelConductor.logger.warn "Candidate number to set #{aggregated_flows.length} because flows too little"
         candidate_number = aggregated_flows.length
       end
+
       (1..candidate_number).map do |candidate_index|
         target_flow = aggregated_flows[candidate_index - 1]
         candidate_topology = generate_candidate_by_flows_for_te(target_flow)
@@ -166,7 +156,7 @@ module ModelConductor
 
     # @return [Array<Hash>] Aggregated flows
     #   [{ prefixes: ["a.b.c.d/nn",...], rate: dddd.dd, diff: dd.dd }, ...]
-    def generate_aggregated_flows_for_pni_te
+    def generate_aggregated_flows_for_te
       base_topology = read_base_topology
       # usecase params
       src_asn = @usecase[:params][:source_as][:asn]
@@ -176,7 +166,7 @@ module ModelConductor
       max_bandwidth = observe_point[:expected_max_bandwidth].to_f / 1e6
 
       flow_data_table = FlowDataTable.new(@usecase[:phase_candidate_opts][:flow_data])
-      result = pickup_prefix_set(base_topology, observe_point[:node], src_asn)
+      result = base_topology.pickup_prefix_set(observe_point[:node], target_prefix_set_name(src_asn))
       if result[:error]
         ModelConductor.logger.error result[:message]
         return nil
@@ -197,7 +187,7 @@ module ModelConductor
       l3_node_name = @usecase[:phase_candidate_opts][:node]
       src_asn = @usecase[:params][:source_as][:asn]
 
-      result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
+      result = base_topology.pickup_prefix_set(l3_node_name, target_prefix_set_name(src_asn))
       if result[:error]
         ModelConductor.logger.error result[:message]
         return nil
@@ -216,48 +206,6 @@ module ModelConductor
     def update_prefixes_by_flows_for_te!(prefix_set, aggregated_flow)
       prefix_set.prefixes.select! do |prefix|
         aggregated_flow[:prefixes].include?(prefix.prefix)
-      end
-    end
-
-    # rubocop:disable Metrics/MethodLength
-
-    # @param [Netomox::Topology::Networks] base_topology
-    # @param [String] l3_node_name
-    # @param [Integer] src_asn
-    # @return [Hash]
-    def pickup_prefix_set(base_topology, l3_node_name, src_asn)
-      # pickup target network
-      bgp_proc_nw = base_topology.find_network('bgp_proc')
-      if bgp_proc_nw.nil?
-        message = "network:bgp_proc is not found in #{base_topology.networks.map(&:name)}"
-        return { error: true, message: }
-      end
-
-      # pickup target node (layer3 name -> bgp-proc node)
-      bgp_proc_node = bgp_proc_nw.find_node_by_support('layer3', l3_node_name)
-      if bgp_proc_node.nil?
-        message = "bgp-proc node that supports layer3:#{l3_node_name} is not found in network:#{bgp_proc_nw.name}"
-        return { error: true, message: }
-      end
-
-      prefix_set_name = "as#{src_asn}-advd-ipv4"
-      prefix_set = find_prefix_set(bgp_proc_node, prefix_set_name)
-      if prefix_set.nil?
-        message = "prefix-set: #{prefix_set_name} is not found in node:#{bgp_proc_node.name}"
-        return { error: true, message: }
-      end
-
-      # found prefix_set to modify for candidate topology
-      { error: false, message: 'ok', prefix_set: }
-    end
-    # rubocop:enable Metrics/MethodLength
-
-    # @param [Netomox::Topology::Node] bgp_proc_node
-    # @param [String] prefix_set_name
-    # @return [nil, Netomox::Topology::MddoBgpPrefixSet]
-    def find_prefix_set(bgp_proc_node, prefix_set_name)
-      bgp_proc_node.attribute.prefix_sets.find do |pfx_set|
-        pfx_set.name =~ /#{prefix_set_name}/
       end
     end
 
