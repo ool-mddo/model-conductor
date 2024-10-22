@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'netomox'
+
 # patch for CandidateTopologyGenerator
 module Netomox
   module Topology
