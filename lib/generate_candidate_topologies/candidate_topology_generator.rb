@@ -22,6 +22,8 @@ module Netomox
 end
 
 module ModelConductor
+  # rubocop:disable Metrics/ClassLength
+
   # candidate topology generator
   class CandidateTopologyGenerator
     # @param [String] network Network name
@@ -39,7 +41,7 @@ module ModelConductor
       @usecase = usecase_data
     end
 
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    # rubocop:disable Metrics/MethodLength
 
     # @param [Integer] phase_number Phase number
     # @param [Integer] candidate_number Number of candidates
@@ -50,7 +52,83 @@ module ModelConductor
         return nil
       end
 
-      # for pni_te usecase
+      # for pni_te/multi_region_te usecase
+      if @usecase[:phase_candidate_opts].key?(:flow_data)
+        ModelConductor.logger.info 'Generate candidate by flows'
+        candidate_topologies_by_flows(phase_number, candidate_number)
+      else
+        ModelConductor.logger.info 'Generate candidate by simple select'
+        candidate_topologies_by_simple_select(phase_number, candidate_number)
+      end
+    end
+    # rubocop:enable Metrics/MethodLength
+
+    private
+
+    # @param [Netomox::Topology::MddoBgpPrefixSet] prefix_set
+    # @param [Integer] policy_index Index number to omit from prefix-set
+    # @return [nil, Netomox::Topology::MddoBgpPrefix]
+    def update_prefixes_by_simple_select!(prefix_set, policy_index)
+      if policy_index > prefix_set.prefixes.length
+        ModelConductor.logger.error "policy unchanged out-of-range index #{policy_index} for prefix-set"
+        nil
+      else
+        prefix_set.prefixes.delete_at(policy_index - 1)
+      end
+    end
+
+    # @param [Integer] policy_index Index number to omit from prefix-set
+    # @return [nil, Array(Netomox::Topology::Networks, Netomox::Topology::MddoBgpPrefix)]
+    def generate_candidate_by_simple_select_for_te(policy_index)
+      # always reload to avoid deep-copy problem...
+      base_topology = read_base_topology
+      # usecase params
+      l3_node_name = @usecase[:phase_candidate_opts][:node]
+      src_asn = @usecase[:params][:source_as][:asn]
+
+      result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
+      if result[:error]
+        ModelConductor.logger.error result[:message]
+        return nil
+      end
+
+      # overwrite base_topology
+      omitted_prefix = update_prefixes_by_simple_select!(result[:prefix_set], policy_index)
+
+      # return modified topology data as candidate_pi
+      [base_topology, omitted_prefix]
+    end
+
+    # @param [Integer] phase_number Phase number
+    # @param [Integer] candidate_number Number of candidates
+    # @return [Array<Hash>]
+    def candidate_topologies_by_simple_select(phase_number, candidate_number)
+      (1..candidate_number).map do |candidate_index|
+        candidate_topology, omitted_policy = generate_candidate_by_simple_select_for_te(candidate_index)
+        candidate_condition = { omit_index: candidate_index, omit_policy: omitted_policy.to_data }
+        candidate_topology_info(phase_number, candidate_index, candidate_topology, candidate_condition)
+      end
+    end
+
+    # @param [Integer] phase_number Phase number
+    # @param [Integer] candidate_index Index of candidate model
+    # @return [Hash] candidate topology metadata (including topology)
+    def candidate_topology_info(phase_number, candidate_index, candidate_topology, candidate_condition)
+      {
+        network: @network,
+        benchmark_snapshot: @snapshot,
+        snapshot: "original_candidate_#{phase_number}#{candidate_index}",
+        topology: candidate_topology.to_data,
+        candidate_condition:
+      }
+    end
+
+    # rubocop:disable Metrics/MethodLength
+
+    # @param [Integer] phase_number Phase number
+    # @param [Integer] candidate_number Number of candidates
+    # @return [nil, Array<Hash>] nil for error
+    def candidate_topologies_by_flows(phase_number, candidate_number)
       aggregated_flows = generate_aggregated_flows_for_pni_te
       if aggregated_flows.nil?
         ModelConductor.logger.error "Cannot operate aggregated flows in usecase:#{@usecase[:name]}"
@@ -63,19 +141,26 @@ module ModelConductor
       end
       (1..candidate_number).map do |candidate_index|
         target_flow = aggregated_flows[candidate_index - 1]
-        candidate_topology = generate_candidate_for_pni_te(target_flow)
-        {
-          network: @network,
-          benchmark_snapshot: @snapshot,
-          snapshot: "original_candidate_#{phase_number}#{candidate_index}",
-          topology: candidate_topology.to_data,
-          candidate_condition: target_flow
-        }
+        candidate_topology = generate_candidate_by_flows_for_te(target_flow)
+        candidate_topology_info(phase_number, candidate_index, candidate_topology, target_flow)
       end
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+    # rubocop:enable Metrics/MethodLength
 
-    private
+    # @return [Hash] {node, interface, expected_max_bandwidth} params in params/expected_traffic/original_targets
+    def find_observe_point
+      pc_opts = @usecase[:phase_candidate_opts] # alias
+      observe_point = @usecase[:params][:expected_traffic][:original_targets].find do |t|
+        t[:node] == pc_opts[:node] && t[:interface] == pc_opts[:interface]
+      end
+
+      if observe_point
+        observe_point
+      else
+        pc_opts[:expected_max_bandwidth] = 8e8 # assume 80% of 10GbE
+        pc_opts
+      end
+    end
 
     # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
 
@@ -84,15 +169,14 @@ module ModelConductor
     def generate_aggregated_flows_for_pni_te
       base_topology = read_base_topology
       # usecase params
-      l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
       src_asn = @usecase[:params][:source_as][:asn]
-      target_node = @usecase[:params][:expected_traffic][:original_targets].find { |t| t[:node] == l3_node_name }
+      observe_point = find_observe_point
       # NOTE: max_bandwidth is bps string (like "0.8e9"),
       #   convert it to Mbps value (float number) because rate in flow-data is Mbps value
-      max_bandwidth = target_node[:expected_max_bandwidth].to_f / 1e6
-      flow_data_table = FlowDataTable.new(@usecase[:flow_data])
+      max_bandwidth = observe_point[:expected_max_bandwidth].to_f / 1e6
 
-      result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
+      flow_data_table = FlowDataTable.new(@usecase[:phase_candidate_opts][:flow_data])
+      result = pickup_prefix_set(base_topology, observe_point[:node], src_asn)
       if result[:error]
         ModelConductor.logger.error result[:message]
         return nil
@@ -106,11 +190,11 @@ module ModelConductor
 
     # @param [Hash] aggregated_flow An entry of aggregated flows
     # @return [nil, Netomox::Topology::Networks]
-    def generate_candidate_for_pni_te(aggregated_flow)
+    def generate_candidate_by_flows_for_te(aggregated_flow)
       # always reload to avoid deep-copy problem...
       base_topology = read_base_topology
       # usecase params
-      l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
+      l3_node_name = @usecase[:phase_candidate_opts][:node]
       src_asn = @usecase[:params][:source_as][:asn]
 
       result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
@@ -120,16 +204,16 @@ module ModelConductor
       end
 
       # overwrite base_topology
-      update_prefixes_for_pni_te!(result[:prefix_set], aggregated_flow)
+      update_prefixes_by_flows_for_te!(result[:prefix_set], aggregated_flow)
 
-      # return modified topology data as candidate_i
+      # return modified topology data as candidate_pi
       base_topology
     end
 
     # @param [Netomox::Topology::MddoBgpPrefixSet] prefix_set
     # @param [Hash] aggregated_flow An aggregated flow entry
     # @return [void]
-    def update_prefixes_for_pni_te!(prefix_set, aggregated_flow)
+    def update_prefixes_by_flows_for_te!(prefix_set, aggregated_flow)
       prefix_set.prefixes.select! do |prefix|
         aggregated_flow[:prefixes].include?(prefix.prefix)
       end
@@ -182,4 +266,5 @@ module ModelConductor
       ModelConductor.rest_api.fetch_topology_object(@network, @snapshot)
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end
