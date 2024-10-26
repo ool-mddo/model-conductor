@@ -6,7 +6,11 @@ require_relative 'netomox_topology'
 
 module ModelConductor
   # candidate topology generator (common functions)
+  # noinspection SpellCheckingInspection
   class CandidateTopologyGenerator
+    # allowed usecases
+    ALLOWED_USECASES = %w[pni_te multi_region_te multi_src_as_te].freeze
+
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @param [Hash] usecase_data
@@ -28,7 +32,7 @@ module ModelConductor
     # @param [Integer] candidate_number Number of candidates
     # @return [nil, Array<Hash>]
     def generate_candidate_topologies(phase_number, candidate_number)
-      unless %w[pni_te multi_region_te].include?(@usecase[:name])
+      unless ALLOWED_USECASES.include?(@usecase[:name])
         ModelConductor.logger.error "Unsupported usecase: #{@usecase[:name]}"
         return nil
       end
@@ -69,5 +73,28 @@ module ModelConductor
     def read_base_topology
       ModelConductor.rest_api.fetch_topology_object(@network, @snapshot)
     end
+
+    # rubocop:disable Metrics/AbcSize
+
+    # @return [Integer] source ASN
+    # @raise [StandardError] ASN mismatch
+    def select_source_asn
+      # prioritize ASN in params, ignore ASN in phase_candidate_opts if defined
+      return @usecase[:params][:source_as][:asn].to_i if @usecase[:params].key?(:source_as)
+
+      # for source_ases case (multi_src_as_te usecase)
+      if @usecase[:phase_candidate_opts].key?(:peer_asn)
+        asn = @usecase[:phase_candidate_opts][:peer_asn].to_i
+        found_source_as_params = @usecase[:params][:source_ases].find { |source_as| source_as[:asn].to_i == asn }
+        return found_source_as_params[:asn] if found_source_as_params
+
+        warn "# DEBUG: params: #{@usecase[:params].inspect}"
+        warn "# DEBUG: phase_candidate_opts: #{@usecase[:phase_candidate_opts].inspect}"
+        raise StandardError, "ASN:#{asn} mismatch in params and phase_candidate_opts"
+      end
+
+      raise StandardError, 'Target ASN not found in phase_candidate_opts'
+    end
+    # rubocop:enable Metrics/AbcSize
   end
 end

@@ -26,7 +26,7 @@ module ModelConductor
       base_topology = read_base_topology
       # usecase params
       l3_node_name = @usecase[:phase_candidate_opts][:node]
-      src_asn = @usecase[:params][:source_as][:asn]
+      src_asn = select_source_asn
 
       result = base_topology.pickup_prefix_set(l3_node_name, target_prefix_set_name(src_asn))
       if result[:error]
