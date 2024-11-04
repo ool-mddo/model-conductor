@@ -1,29 +1,16 @@
 # frozen_string_literal: true
 
-require 'netomox'
-require_relative 'flow_data_table'
-
-module Netomox
-  module Topology
-    # patch for Network
-    class Network
-      # @param [String] nw_ref Supporting network name
-      # @param [String] node_ref Supporting node name
-      # @return [nil, Netomox::Topology::Node]
-      def find_node_by_support(nw_ref, node_ref)
-        @nodes.find do |node|
-          node.supports.find do |support|
-            support.ref_network == nw_ref && support.ref_node == node_ref
-          end
-        end
-      end
-    end
-  end
-end
+require_relative 'candidate_topology_generator_te_flow'
+require_relative 'candidate_topology_generator_te_simple'
+require_relative 'netomox_topology'
 
 module ModelConductor
-  # candidate topology generator
+  # candidate topology generator (common functions)
+  # noinspection SpellCheckingInspection
   class CandidateTopologyGenerator
+    # allowed usecases
+    ALLOWED_USECASES = %w[pni_te multi_region_te multi_src_as_te].freeze
+
     # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @param [Hash] usecase_data
@@ -39,145 +26,75 @@ module ModelConductor
       @usecase = usecase_data
     end
 
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    # rubocop:disable Metrics/MethodLength
 
+    # @param [Integer] phase_number Phase number
     # @param [Integer] candidate_number Number of candidates
     # @return [nil, Array<Hash>]
-    def generate_candidate_topologies(candidate_number)
-      unless @usecase[:name] == 'pni_te'
+    def generate_candidate_topologies(phase_number, candidate_number)
+      unless ALLOWED_USECASES.include?(@usecase[:name])
         ModelConductor.logger.error "Unsupported usecase: #{@usecase[:name]}"
         return nil
       end
 
-      # for pni_te usecase
-      aggregated_flows = generate_aggregated_flows_for_pni_te
-      if aggregated_flows.nil?
-        ModelConductor.logger.error "Cannot operate aggregated flows in usecase:#{@usecase[:name]}"
-        return nil
+      # for pni_te/multi_region_te usecase
+      if @usecase[:phase_candidate_opts].key?(:flow_data)
+        ModelConductor.logger.info 'Generate candidate by flows'
+        candidate_topologies_by_flows(phase_number, candidate_number)
+      else
+        ModelConductor.logger.info 'Generate candidate by simple select'
+        candidate_topologies_by_simple_select(phase_number, candidate_number)
       end
-
-      if aggregated_flows.length <= candidate_number
-        ModelConductor.logger.warn "Candidate number to set #{aggregated_flows.length} because flows too little"
-        candidate_number = aggregated_flows.length
-      end
-      (1..candidate_number).map do |candidate_index|
-        target_flow = aggregated_flows[candidate_index - 1]
-        candidate_topology = generate_candidate_for_pni_te(target_flow)
-        {
-          network: @network,
-          snapshot: "original_candidate_#{candidate_index}",
-          topology: candidate_topology.to_data,
-          candidate_condition: target_flow
-        }
-      end
-    end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
-
-    private
-
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-
-    # @return [Array<Hash>] Aggregated flows
-    #   [{ prefixes: ["a.b.c.d/nn",...], rate: dddd.dd, diff: dd.dd }, ...]
-    def generate_aggregated_flows_for_pni_te
-      base_topology = read_base_topology
-      # usecase params
-      l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
-      src_asn = @usecase[:params][:source_as][:asn]
-      target_node = @usecase[:params][:expected_traffic][:original_targets].find { |t| t[:node] == l3_node_name }
-      # NOTE: max_bandwidth is bps string (like "0.8e9"),
-      #   convert it to Mbps value (float number) because rate in flow-data is Mbps value
-      max_bandwidth = target_node[:expected_max_bandwidth].to_f / 1e6
-      flow_data_table = FlowDataTable.new(@usecase[:flow_data])
-
-      result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
-      if result[:error]
-        ModelConductor.logger.error result[:message]
-        return nil
-      end
-
-      prefix_set = result[:prefix_set]
-      combination_count = prefix_set.prefixes.length # MAX: full-combinations
-      flow_data_table.aggregated_flows_by_prefix(combination_count, prefix_set, max_bandwidth)
-    end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
-
-    # @param [Hash] aggregated_flow An entry of aggregated flows
-    # @return [nil, Netomox::Topology::Networks]
-    def generate_candidate_for_pni_te(aggregated_flow)
-      # always reload to avoid deep-copy problem...
-      base_topology = read_base_topology
-      # usecase params
-      l3_node_name = @usecase[:params][:source_as][:preferred_peer][:node]
-      src_asn = @usecase[:params][:source_as][:asn]
-
-      result = pickup_prefix_set(base_topology, l3_node_name, src_asn)
-      if result[:error]
-        ModelConductor.logger.error result[:message]
-        return nil
-      end
-
-      # overwrite base_topology
-      update_prefixes_for_pni_te!(result[:prefix_set], aggregated_flow)
-
-      # return modified topology data as candidate_i
-      base_topology
-    end
-
-    # @param [Netomox::Topology::MddoBgpPrefixSet] prefix_set
-    # @param [Hash] aggregated_flow An aggregated flow entry
-    # @return [void]
-    def update_prefixes_for_pni_te!(prefix_set, aggregated_flow)
-      prefix_set.prefixes.select! do |prefix|
-        aggregated_flow[:prefixes].include?(prefix.prefix)
-      end
-    end
-
-    # rubocop:disable Metrics/MethodLength
-
-    # @param [Netomox::Topology::Networks] base_topology
-    # @param [String] l3_node_name
-    # @param [Integer] src_asn
-    # @return [Hash]
-    def pickup_prefix_set(base_topology, l3_node_name, src_asn)
-      # pickup target network
-      bgp_proc_nw = base_topology.find_network('bgp_proc')
-      if bgp_proc_nw.nil?
-        message = "network:bgp_proc is not found in #{base_topology.networks.map(&:name)}"
-        return { error: true, message: }
-      end
-
-      # pickup target node (layer3 name -> bgp-proc node)
-      bgp_proc_node = bgp_proc_nw.find_node_by_support('layer3', l3_node_name)
-      if bgp_proc_node.nil?
-        message = "bgp-proc node that supports layer3:#{l3_node_name} is not found in network:#{bgp_proc_nw.name}"
-        return { error: true, message: }
-      end
-
-      prefix_set_name = "as#{src_asn}-advd-ipv4"
-      prefix_set = find_prefix_set(bgp_proc_node, prefix_set_name)
-      if prefix_set.nil?
-        message = "prefix-set: #{prefix_set_name} is not found in node:#{bgp_proc_node.name}"
-        return { error: true, message: }
-      end
-
-      # found prefix_set to modify for candidate topology
-      { error: false, message: 'ok', prefix_set: }
     end
     # rubocop:enable Metrics/MethodLength
 
-    # @param [Netomox::Topology::Node] bgp_proc_node
-    # @param [String] prefix_set_name
-    # @return [nil, Netomox::Topology::MddoBgpPrefixSet]
-    def find_prefix_set(bgp_proc_node, prefix_set_name)
-      bgp_proc_node.attribute.prefix_sets.find do |pfx_set|
-        pfx_set.name =~ /#{prefix_set_name}/
-      end
+    private
+
+    # @param [String] src_asn Source AS number
+    # @return [String]
+    def target_prefix_set_name(src_asn)
+      "as#{src_asn}-advd-ipv4"
+    end
+
+    # @param [Integer] phase_number Phase number
+    # @param [Integer] candidate_index Index of candidate model
+    # @return [Hash] candidate topology metadata (including topology)
+    def candidate_topology_info(phase_number, candidate_index, candidate_topology, candidate_condition)
+      {
+        network: @network,
+        benchmark_snapshot: @snapshot,
+        snapshot: "original_candidate_#{phase_number}#{candidate_index}",
+        topology: candidate_topology.to_data,
+        candidate_condition:
+      }
     end
 
     # @return [Netomox::Topology::Networks] topology object
     def read_base_topology
       ModelConductor.rest_api.fetch_topology_object(@network, @snapshot)
     end
+
+    # rubocop:disable Metrics/AbcSize
+
+    # @return [Integer] source ASN
+    # @raise [StandardError] ASN mismatch
+    def select_source_asn
+      # prioritize ASN in params, ignore ASN in phase_candidate_opts if defined
+      return @usecase[:params][:source_as][:asn].to_i if @usecase[:params].key?(:source_as)
+
+      # for source_ases case (multi_src_as_te usecase)
+      if @usecase[:phase_candidate_opts].key?(:peer_asn)
+        asn = @usecase[:phase_candidate_opts][:peer_asn].to_i
+        found_source_as_params = @usecase[:params][:source_ases].find { |source_as| source_as[:asn].to_i == asn }
+        return found_source_as_params[:asn] if found_source_as_params
+
+        warn "# DEBUG: params: #{@usecase[:params].inspect}"
+        warn "# DEBUG: phase_candidate_opts: #{@usecase[:phase_candidate_opts].inspect}"
+        raise StandardError, "ASN:#{asn} mismatch in params and phase_candidate_opts"
+      end
+
+      raise StandardError, 'Target ASN not found in phase_candidate_opts'
+    end
+    # rubocop:enable Metrics/AbcSize
   end
 end
