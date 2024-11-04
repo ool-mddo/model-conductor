@@ -198,6 +198,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 Generate candidate configs from original_asis snapshot
 
 * POST `/conduct/<network>/<snapshot>/candidate_topology`
+  * `phase_number`: Number of search iteration (phase)
   * `candidate_number`: Number of candidate configs
   * `usecase`: Usecase parameter
     * `name`: Usecase name
@@ -205,9 +206,25 @@ Generate candidate configs from original_asis snapshot
 
 ```shell
 curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"candidate_number": 3, "usecase": { "name": "pni_te", "sources": ["params", "flow_data"]}}' \
+  -d '{"candidate_number": 3, "usecase": { "name": "pni_te", "sources": ["params", "phase_candidate_opts"]}}' \
   http://localhost:9292/conduct/mddo-bgp/original_asis/candidate_topology
 ```
+
+<details>
+<summary>NOTE: "phase_candidate_opts" for multi_region_te or multi_src_as_te usecase</summary>
+"phase_candidate_opts.yaml" can include flow_data for candidate model generation.
+If with flow_data, candidate model is generated using the flow_data, prefix-set selection done by flow_data.
+But without flow_data, candidate model is simple selection, prefix-set selection done by sequential.
+
+```yaml
+---
+peer_asn: 65550
+node: edge-tk01
+interface: ge-0/0/1.0
+flow_data: flows/event # csv
+```
+</details>
+
 
 ## Development
 
