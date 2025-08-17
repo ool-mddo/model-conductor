@@ -6,8 +6,6 @@ require_relative 'name_converter'
 require_relative 'netomox_patch'
 
 module ModelConductor
-  # rubocop:disable Metrics/ClassLength
-
   # command generator for manual topology operation
   class TopologyOpsCommander
     # @param [String] command Command name
@@ -114,14 +112,11 @@ module ModelConductor
       }
     end
 
-    # rubocop:disable Metrics/MethodLength
-
     # @param [Netomox::Topology::Network] layer3_nw Layer3 network
     # @param [Array<Netomox::Topology::Link>] links Link list
     # @return [Netomox::Topology::Node]
     # @raise [StandardError]
     def find_bridge_node_from(layer3_nw, links)
-      warn '# find_bridge_node_from'
       links.each do |link|
         shut_ep = link.find_shutdown_endpoint
         next unless shut_ep.nil? # if found shutdown endpoint, nothing to do
@@ -135,7 +130,6 @@ module ModelConductor
       end
       raise StandardError, 'pattern[2] target bridge not found'
     end
-    # rubocop:enable Metrics/MethodLength
 
     # @param [Netomox::Topology::Link] link00 Link0
     # @param [Netomox::Topology::Link] link10 Link1
@@ -164,23 +158,23 @@ module ModelConductor
       link1 = current_resource['links'][1] # pair of 10, 11: c->d, d->c pair
       link10 = link1[0]
 
-      if @orig_l3nw.empty_bridge_link?(link00) || @orig_l3nw.empty_bridge_link?(link10)
-        # pattern [1][2] one or both link connected to shutdown bridge
-        tobe_empty_bridges = current_resource['empty_bridges'].dup # keep current list
-
-        target_bridge = select_target_bridge(link00, link10, tobe_empty_bridges)
-        raise StandardError, 'pattern[1][2] target bridge not found' if target_bridge.nil?
-
-        ans = []
-        ans.push(move_shutdown_bridge_link(link0, target_bridge)) if @orig_l3nw.empty_bridge_link?(link00)
-        ans.push(move_shutdown_bridge_link(link1, target_bridge)) if @orig_l3nw.empty_bridge_link?(link10)
-        merge_operations(ans, tobe_empty_bridges)
-      else
-        # pattern [3], ignore currently
-        raise StandardError, "pattern[3], these endpoints are not connected shutdwon-bridge: #{link00}, #{link10}"
+      unless @orig_l3nw.empty_bridge_link?(link00) || @orig_l3nw.empty_bridge_link?(link10)
+        raise StandardError, "pattern[3], these endpoints are not connected shutdown-bridge: #{link00}, #{link10}"
       end
+
+      # pattern [1][2] one or both link connected to shutdown bridge
+      tobe_empty_bridges = current_resource['empty_bridges'].dup # keep current list
+
+      target_bridge = select_target_bridge(link00, link10, tobe_empty_bridges)
+      raise StandardError, 'pattern[1][2] target bridge not found' if target_bridge.nil?
+
+      ans = []
+      ans.push(move_shutdown_bridge_link(link0, target_bridge)) if @orig_l3nw.empty_bridge_link?(link00)
+      ans.push(move_shutdown_bridge_link(link1, target_bridge)) if @orig_l3nw.empty_bridge_link?(link10)
+      merge_operations(ans, tobe_empty_bridges)
+
+      # pattern [3], ignore currently
     end
     # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
   end
-  # rubocop:enable Metrics/ClassLength
 end
