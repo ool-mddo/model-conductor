@@ -9,27 +9,13 @@ module ModelConductor
     #   @return [String]
     # @!attribute [rw] tp Term-point name
     #   @return [String]
-    # @!attribute [rw] node_entry Node entry (convert-table entry)
-    #   @return [Hash]
-    # @!attribute [rw] tp_entry Term-point entry (convert-table entry)
-    #   @return [Hash]
-    attr_accessor :node, :tp, :node_entry, :tp_entry
+    attr_accessor :node, :tp
 
     # @param [String] node Node name
     # @param [String] term_point Term-point name
-    # @param [Hash] node_entry Node entry
-    # @param [Hash] tp_entry Term-point entry
-    def initialize(node, term_point, node_entry = {}, tp_entry = {})
+    def initialize(node, term_point)
       @node = node
       @tp = term_point
-      @node_entry = node_entry
-      @tp_entry = tp_entry
-    end
-
-    # another constructor
-    # @return [ArgLinkEndpoint]
-    def self.from_convert_entry(node_entry, tp_entry)
-      new(node_entry['l3_model'], tp_entry['l3_model'], node_entry, tp_entry)
     end
 
     # @return [Netomox::Topology::TpRef]
@@ -40,7 +26,7 @@ module ModelConductor
 
     # @return [Hash] Hash data
     def to_data
-      { 'node' => @node, 'tp' => @tp, 'node_entry' => @node_entry, 'tp_entry' => @tp_entry }
+      { 'node' => @node, 'tp' => @tp }
     end
 
     # @return [String]
@@ -60,9 +46,8 @@ module ModelConductor
     # @param [Hash] source Source endpoint data
     # @param [Hash] destination Destination endpoint data
     def initialize(source, destination)
-      @source = ArgLinkEndpoint.new(source['node'], source['tp'], source['node_entry'], source['tp_entry'])
-      @destination = ArgLinkEndpoint.new(destination['node'], destination['tp'], destination['node_entry'],
-                                         destination['tp_entry'])
+      @source = ArgLinkEndpoint.new(source['node'], source['tp'])
+      @destination = ArgLinkEndpoint.new(destination['node'], destination['tp'])
     end
 
     # another constructor

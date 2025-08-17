@@ -114,7 +114,7 @@ module ModelConductor
       }
     end
 
-    # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+    # rubocop:disable Metrics/MethodLength
 
     # @param [Netomox::Topology::Network] layer3_nw Layer3 network
     # @param [Array<Netomox::Topology::Link>] links Link list
@@ -123,11 +123,9 @@ module ModelConductor
     def find_bridge_node_from(layer3_nw, links)
       warn '# find_bridge_node_from'
       links.each do |link|
-        warn "## link = #{link}"
         shut_ep = link.find_shutdown_endpoint
         next unless shut_ep.nil? # if found shutdown endpoint, nothing to do
 
-        warn '## find seg nodes'
         # pattern[2] connected normal segment node
         seg_nodes = layer3_nw.find_all_nodes_by_type('segment')
         [link.source, link.destination].each do |ep|
@@ -137,7 +135,7 @@ module ModelConductor
       end
       raise StandardError, 'pattern[2] target bridge not found'
     end
-    # rubocop:enable Metrics/MethodLength, Metrics/AbcSize
+    # rubocop:enable Metrics/MethodLength
 
     # @param [Netomox::Topology::Link] link00 Link0
     # @param [Netomox::Topology::Link] link10 Link1
@@ -158,6 +156,7 @@ module ModelConductor
 
     # @param [Hash] current_resource Current resource data
     # @return [Hash]
+    # @raise [StandardError] operation pattern error
     def operate_tobe(current_resource)
       # alias
       link0 = current_resource['links'][0] # pair of 00, 01: a->b, b->a pair
@@ -177,9 +176,8 @@ module ModelConductor
         ans.push(move_shutdown_bridge_link(link1, target_bridge)) if @orig_l3nw.empty_bridge_link?(link10)
         merge_operations(ans, tobe_empty_bridges)
       else
-        # pattern [3]
-        warn `Cannot handle pattern [3], Ignored (currently)`
-        {}
+        # pattern [3], ignore currently
+        raise StandardError, "pattern[3], these endpoints are not connected shutdwon-bridge: #{link00}, #{link10}"
       end
     end
     # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
