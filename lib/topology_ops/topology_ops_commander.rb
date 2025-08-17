@@ -55,13 +55,18 @@ module ModelConductor
       converted_shut_tp = @name_converter.convert_tp_name(shut_ep.node_ref, shut_ep.tp_ref)
       converted_ebr = @name_converter.convert_node_name(empty_bridge.name)
 
-      shut_br_name = converted_shut_br['l1_principal']
-      shut_tp_name = converted_shut_tp['l1_principal']
-      ebr_name = converted_ebr['l1_principal']
+      shut_br_name_l1p = converted_shut_br['l1_principal']
+      shut_tp_name_l1p = converted_shut_tp['l1_principal']
+      ebr_name_l1p = converted_ebr['l1_principal']
 
+      shut_br_name_l3m = converted_shut_br['l3_model']
+      shut_tp_name_l3m = converted_shut_tp['l3_model']
+      ebr_name_l3m = converted_ebr['l3_model']
       [
-        "ovs-vsctl del-port #{shut_br_name} #{shut_tp_name}",
-        "ovs-vsctl add-port #{ebr_name} #{shut_tp_name}"
+        "# ovs-vsctl del-port #{shut_br_name_l3m} #{shut_tp_name_l3m}",
+        "ovs-vsctl del-port #{shut_br_name_l1p} #{shut_tp_name_l1p}",
+        "# ovs-vsctl add-port #{ebr_name_l3m} #{shut_tp_name_l3m}",
+        "ovs-vsctl add-port #{ebr_name_l1p} #{shut_tp_name_l1p}"
       ]
     end
 
