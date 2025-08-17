@@ -61,7 +61,8 @@ module ModelConductor
     # @param [Hash] destination Destination endpoint data
     def initialize(source, destination)
       @source = ArgLinkEndpoint.new(source['node'], source['tp'], source['node_entry'], source['tp_entry'])
-      @destination = ArgLinkEndpoint.new(destination['node'], destination['tp'], destination['node_entry'], destination['tp_entry'])
+      @destination = ArgLinkEndpoint.new(destination['node'], destination['tp'], destination['node_entry'],
+                                         destination['tp_entry'])
     end
 
     # another constructor

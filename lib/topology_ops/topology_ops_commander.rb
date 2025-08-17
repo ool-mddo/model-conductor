@@ -6,6 +6,8 @@ require_relative 'name_converter'
 require_relative 'netomox_patch'
 
 module ModelConductor
+  # rubocop:disable Metrics/ClassLength
+
   # command generator for manual topology operation
   class TopologyOpsCommander
     # @param [String] command Command name
@@ -39,11 +41,29 @@ module ModelConductor
       {
         'operation' => operation,
         'current_resource' => current_resource,
-        'tobe_resource' => operate_tobe(orig_l3nw, operation, current_resource)
+        'tobe_resource' => operate_tobe(orig_l3nw, current_resource)
       }
     end
 
     private
+
+    # @param [Netomox::Topology::TpRef] shut_ep Shutdown endpoint (current)
+    # @param [Netomox::Topology::Node] empty_bridge Empty bridge (tobe)
+    # @return [Array<String>] command list
+    def emulated_ns_ops(shut_ep, empty_bridge)
+      converted_shut_br = @name_converter.convert_node_name(shut_ep.node_ref)
+      converted_shut_tp = @name_converter.convert_tp_name(shut_ep.node_ref, shut_ep.tp_ref)
+      converted_ebr = @name_converter.convert_node_name(empty_bridge.name)
+
+      shut_br_name = converted_shut_br['l1_principal']
+      shut_tp_name = converted_shut_tp['l1_principal']
+      ebr_name = converted_ebr['l1_principal']
+
+      [
+        "ovs-vsctl del-port #{shut_br_name} #{shut_tp_name}",
+        "ovs-vsctl add-port #{ebr_name} #{shut_tp_name}"
+      ]
+    end
 
     # @param [Array<Netomox::Topology::Link>] link_pair Link pair (current)
     # @param [Netomox::Topology::Node] empty_bridge Empty bridge
@@ -52,13 +72,14 @@ module ModelConductor
       # alias: pair = [a->b, b->a], only use first entry
       link0 = link_pair[0]
       # answers
-      # cli_commands = [] # TBA
       remove_links = []
       append_links = []
 
       shut_ep = link0.find_shutdown_endpoint
       keep_ep = link0.find_counterpart_endpoint(shut_ep)
       new_ep = Netomox::Topology::TpRef.from_name(empty_bridge.name, shut_ep.tp_ref, 'layer3')
+
+      cli_commands = emulated_ns_ops(shut_ep, empty_bridge)
 
       remove_links.push(link_pair)
       append_links.push(Netomox::Topology::Link.from_tpref(keep_ep, new_ep, 'layer3'))
@@ -67,7 +88,7 @@ module ModelConductor
       {
         'remove_links' => remove_links,
         'append_links' => append_links,
-        'command_list' => ['TBA'] # TBA
+        'command_list' => cli_commands
       }
     end
 
@@ -84,25 +105,53 @@ module ModelConductor
     end
 
     # @param [Netomox::Topology::Network] layer3_nw Layer3 network
-    # @param [Hash] operation Operation data
+    # @param [Array<Netomox::Topology::Link>] links Link list
+    # @return [Netomox::Topology::Node]
+    # @raise [StandardError]
+    def find_bridge_node_from(layer3_nw, links)
+      warn '# find_bridge_node_from'
+      links.each do |link|
+        warn "## link = #{link}"
+        shut_ep = link.find_shutdown_endpoint
+        next unless shut_ep.nil? # if found shutdown endpoint, notthing to do
+
+        warn '## find seg nodes'
+        # pattern[2] connected normal segment node
+        seg_nodes = layer3_nw.find_all_nodes_by_type('segment')
+        [link.source, link.destination].each do |ep|
+          target_seg_node = seg_nodes.find { |node| node.name == ep.node_ref }
+          return target_seg_node unless target_seg_node.nil?
+        end
+      end
+      raise StandardError, 'pattern[2] target bridge not found'
+    end
+
+    # @param [Netomox::Topology::Network] layer3_nw Layer3 network
     # @param [Hash] current_resource Current resource data
     # @return [Hash]
-    def operate_tobe(layer3_nw, operation, current_resource)
+    def operate_tobe(layer3_nw, current_resource)
       # alias
       link0 = current_resource['links'][0] # pair of 00, 01: a->b, b->a pair
       link00 = link0[0]
       link1 = current_resource['links'][1] # pair of 10, 11: c->d, d->c pair
       link10 = link1[0]
 
-      if layer3_nw.is_empty_bridge_link?(link00) || layer3_nw.is_empty_bridge_link?(link10)
-        # pattern [1][2]
+      if layer3_nw.empty_bridge_link?(link00) || layer3_nw.empty_bridge_link?(link10)
+        # pattern [1][2] one or both link connected to shutdown bridge
         tobe_empty_bridges = current_resource['empty_bridges'].dup # keep current list
-        ebr = tobe_empty_bridges.shift
-        raise StandardError, "Empty bridge:#{ebr.name} is not found in layer3 network" if ebr.nil?
+
+        target_bridge = if layer3_nw.empty_bridge_link?(link00) && layer3_nw.empty_bridge_link?(link10)
+                          # pattern [1] both link0 and 1 are connected to shutdown bridge
+                          tobe_empty_bridges.shift
+                        else
+                          # pattern [2] one of link0 or 1 is connected to shutdown bridge
+                          find_bridge_node_from(layer3_nw, [link00, link10])
+                        end
+        raise StandardError, 'pattern[1][2] target bridge not found' if target_bridge.nil?
 
         ans = []
-        ans.push(move_shutdown_bridge_link(link0, ebr)) if layer3_nw.is_empty_bridge_link?(link00)
-        ans.push(move_shutdown_bridge_link(link1, ebr)) if layer3_nw.is_empty_bridge_link?(link10)
+        ans.push(move_shutdown_bridge_link(link0, target_bridge)) if layer3_nw.empty_bridge_link?(link00)
+        ans.push(move_shutdown_bridge_link(link1, target_bridge)) if layer3_nw.empty_bridge_link?(link10)
         merge_operations(ans, tobe_empty_bridges)
       else
         # pattern [3]
@@ -111,4 +160,5 @@ module ModelConductor
       end
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end

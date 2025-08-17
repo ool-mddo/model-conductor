@@ -27,6 +27,14 @@ module Netomox
         ].compact
       end
 
+      # @param [String] node_type Node type
+      # @return [Array<Netomox::Topology::Node>]
+      def find_all_nodes_by_type(node_type)
+        @nodes.find_all do |node|
+          node.attribute.node_type == node_type
+        end
+      end
+
       # @param [String] flag Flag
       # @return [Array<Netomox::Topology::Node>]
       def find_all_node_by_flag(flag)
@@ -46,7 +54,7 @@ module Netomox
 
       # @param [Netomox::Topology::Link] link Link
       # @return [Boolean] true if link is shutdown-bridge link
-      def is_empty_bridge_link?(link)
+      def empty_bridge_link?(link)
         link.source.node_ref == SHUTDOWN_BRIDGE_NAME || link.destination.node_ref == SHUTDOWN_BRIDGE_NAME
       end
     end
@@ -62,7 +70,7 @@ module Netomox
         data = {
           'link-id' => "#{source.node_ref},#{source.tp_ref},#{destination.node_ref},#{destination.tp_ref}",
           'source' => source.to_data('source'),
-          'destination' => destination.to_data('dest'),
+          'destination' => destination.to_data('dest')
         }
         new(data, layer)
       end
@@ -72,6 +80,7 @@ module Netomox
       def find_endpoint_by_node(node_ref)
         return @source if @source.node_ref == node_ref
         return @destination if @destination.node_ref == node_ref
+
         nil
       end
 
@@ -85,6 +94,7 @@ module Netomox
       def find_counterpart_endpoint(endpoint)
         return @source unless @source == endpoint
         return @destination unless @destination == endpoint
+
         nil
       end
     end
@@ -99,7 +109,7 @@ module Netomox
       def self.from_name(node, term_point, layer)
         data = {
           'source-node' => node,
-          'source-tp' => term_point,
+          'source-tp' => term_point
         }
         new(data, layer)
       end
