@@ -14,6 +14,8 @@ module ModelConductor
       end
       post 'topology_ops' do
         network, snapshot, command, command_args = %i[network snapshot command args].map { |key| params[key] }
+        # NOTE: command_args and topology data must be original namespace data
+        error!("snapshot:#{snapshot} is not original namespace", 500) unless snapshot =~ /original*/
 
         topology_data = rest_api.fetch_topology_data(network, snapshot)
         ns_convert_table = rest_api.fetch_ns_convert_table(network)
