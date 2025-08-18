@@ -75,6 +75,14 @@ module Netomox
         new(data, layer)
       end
 
+      # @param [Hash] arg_link Link data in command argument
+      # @return [Netomox::Topology::Link]
+      def self.from_arg_link(arg_link)
+        source = TpRef.from_name(arg_link['source']['node'], arg_link['source']['tp'], 'layer3')
+        destination = TpRef.from_name(arg_link['destination']['node'], arg_link['destination']['tp'], 'layer3')
+        from_tpref(source, destination, 'layer3')
+      end
+
       # @param [String] node_ref Node name
       # @return [Netomox::Topology::TpRef, nil] nil if not found
       def find_endpoint_by_node(node_ref)

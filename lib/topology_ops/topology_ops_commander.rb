@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'netomox'
-require_relative 'arg_link'
 require_relative 'name_converter'
 require_relative 'netomox_patch'
 
@@ -14,7 +13,7 @@ module ModelConductor
     # @param [Hash] ns_convert_table Namespace convert table
     def initialize(command, command_args, topology_data, ns_convert_table)
       @command = command
-      @arg_link = ArgLink.from_link(command_args['link'])
+      @arg_link = Netomox::Topology::Link.from_arg_link(command_args['link'])
       @name_converter = NameConverter.new(ns_convert_table)
 
       original_topology = Netomox::Topology::Networks.new(topology_data)
@@ -31,8 +30,8 @@ module ModelConductor
       }
       current_resource = {
         'links' => [
-          @orig_l3nw.find_all_links_connect(@arg_link.source.to_tpref), # link0
-          @orig_l3nw.find_all_links_connect(@arg_link.destination.to_tpref) # link1
+          @orig_l3nw.find_all_links_connect(@arg_link.source), # link0
+          @orig_l3nw.find_all_links_connect(@arg_link.destination) # link1
         ],
         'empty_bridges' => @orig_l3nw.find_all_empty_bridges
       }
