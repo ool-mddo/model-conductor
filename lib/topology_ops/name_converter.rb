@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'arg_link'
-
 module ModelConductor
   # convert host/interface name (namespace converters)
   class NameConverter
