@@ -1,0 +1,120 @@
+# frozen_string_literal: true
+
+require_relative 'ops_commander_base'
+
+module ModelConductor
+  # shutdown_intf command generator for manual topology operation
+  class ShutOpsCommander < OpsCommanderBase
+    # @param [String] command Command name
+    # @param [Hash] command_args Command arguments (original_namespace)
+    # @param [Hash] topology_data Topology data (original namespace)
+    # @param [Hash] ns_convert_table Namespace convert table
+    def initialize(command, command_args, topology_data, ns_convert_table)
+      super(command, topology_data, ns_convert_table)
+      ep = command_args['interface'] # alias
+      # = Netomox::Topology::TermPoint.from_name(ep['node'], ep['tp'], 'layer3')
+      @node_ep, @seg_ep = normalize_link_endpoint(ep['node'], ep['tp'])
+    end
+
+    # rubocop:disable Metrics/MethodLength
+
+    # @return [Hash] response data
+    def answer
+      operation = {
+        'command' => @command,
+        'target' => Netomox::Topology::Link.from_tpref(@node_ep, @seg_ep, 'layer3')
+      }
+      current_resource = {
+        'links' => [
+          @orig_l3nw.find_all_links_connect(@node_ep)
+        ],
+        'empty_bridges' => @orig_l3nw.find_all_empty_bridges
+      }
+      # response data
+      {
+        'operation' => operation,
+        'current_resource' => current_resource,
+        'tobe_resource' => operate_tobe(current_resource)
+      }
+    end
+    # rubocop:enable Metrics/MethodLength
+
+    private
+
+    # @param [String] node Node name
+    # param [String] term_point Term-point name
+    # @return [Array(Netomox::Topology::TpRef, Netomox::Topology::TpRef)] a pair of Term-point (node-ep, seg-ep)
+    # @raise [StandardError]
+    def normalize_link_endpoint(node, term_point)
+      link = @orig_l3nw.find_link_by_source(node, term_point)
+      raise StandardError, "link not found: #{node}, #{term_point}" if link.nil?
+
+      src_node = @orig_l3nw.find_node_by_name(link.source.node_ref)
+
+      if src_node.attribute.node_type == 'node'
+        [link.source, link.destination]
+      else
+        [link.destination, link.source]
+      end
+    end
+
+    # rubocop:disable Metrics/MethodLength
+
+    # @param [Netomox::Topology::TpRef] append_ep Append endpoint
+    # @return [Array<String>]
+    def emulated_ns_ops(append_ep)
+      # convert table entry (emulated namespace info)
+      conv_shut_br = @name_converter.convert_node_name(append_ep.node_ref)
+      conv_seg_br = @name_converter.convert_node_name(@seg_ep.node_ref)
+      conv_seg_tp = @name_converter.convert_tp_name(@seg_ep.node_ref, @seg_ep.tp_ref)
+      # converted names
+      shut_br_l1p, seg_br_l1p, seg_tp_l1p = [conv_shut_br, conv_seg_br, conv_seg_tp].map { |h| h['l1_principal'] }
+      shut_br_l3m, seg_br_l3m, seg_tp_l3m = [conv_shut_br, conv_seg_br, conv_seg_tp].map { |h| h['l3_model'] }
+
+      [
+        "# ovs-vsctl del-port #{seg_br_l3m} #{seg_tp_l3m}",
+        "ovs-vsctl del-port #{seg_br_l1p} #{seg_tp_l1p}",
+        "# ovs-vsctl add-port #{shut_br_l3m} #{seg_tp_l3m}",
+        "ovs-vsctl add-port #{shut_br_l1p} #{seg_tp_l1p}"
+      ]
+    end
+    # rubocop:enable Metrics/MethodLength
+
+    # @param [Array<Netomox::Topology::Link>] link_pair Link pair (current)
+    # @return [Hash]
+    def move_bridge_link_to_shutdown(link_pair)
+      append_ep = Netomox::Topology::TpRef.from_name(Netomox::Topology::SHUTDOWN_BRIDGE_NAME, @seg_ep.tp_ref, 'layer3')
+
+      {
+        'remove_links' => link_pair,
+        'append_links' => [
+          Netomox::Topology::Link.from_tpref(@node_ep, append_ep, 'layer3'),
+          Netomox::Topology::Link.from_tpref(append_ep, @node_ep, 'layer3')
+        ],
+        'command_list' => emulated_ns_ops(append_ep)
+      }
+    end
+
+    # rubocop:disable Metrics/MethodLength
+
+    # @param [Hash] current_resources Current resource data
+    # @return [Hash]
+    # @raise [StandardError] operation pattern error
+    def operate_tobe(current_resources)
+      # if segment-ep is shutdown-bridge ep: nothing to do
+      if @seg_ep.node_ref == Netomox::Topology::SHUTDOWN_BRIDGE_NAME
+        return {
+          'remove_links' => [],
+          'append_links' => [],
+          'command_list' => [],
+          'empty_bridge' => current_resources['empty_bridges']
+        }
+      end
+
+      ans = move_bridge_link_to_shutdown(current_resources['links'][0])
+      ans['empty_bridge'] = current_resources['empty_bridges']
+      ans
+    end
+    # rubocop:enable Metrics/MethodLength
+  end
+end
