@@ -4,8 +4,10 @@ require 'netomox'
 
 module Netomox
   module Topology
+    # Node flag for L3 preallocated segment-node
+    FLAG_PREALLOCATED_SEGMENT = 'preallocated-segment'
     # shutdown bridge name
-    SHUTDOWN_BRIDGE_NAME = 'Seg_empty00'
+    SB_NAME = 'Seg_empty00'
 
     # patches for Networks
     class Network
@@ -45,17 +47,17 @@ module Netomox
 
       # @return [Array<Node>]
       def find_all_empty_bridges
-        empty_seg_nodes = find_all_node_by_flag('empty-segment')
-        return [] if empty_seg_nodes.nil?
+        prealloc_seg_node = find_all_node_by_flag(FLAG_PREALLOCATED_SEGMENT)
+        return [] if prealloc_seg_node.nil?
 
-        # find empty-segment node that has no term-point (link) without shutdown-bridge
-        empty_seg_nodes.find_all { |node| node.termination_points.empty? && node.name != SHUTDOWN_BRIDGE_NAME }
+        # find preallocated-segment-node that has no term-point (link) without shutdown-bridge
+        prealloc_seg_node.find_all { |node| node.termination_points.empty? && node.name != SB_NAME }
       end
 
       # @param [Link] link Link
       # @return [Boolean] true if link is shutdown-bridge link
       def empty_bridge_link?(link)
-        link.source.node_ref == SHUTDOWN_BRIDGE_NAME || link.destination.node_ref == SHUTDOWN_BRIDGE_NAME
+        link.source.node_ref == SB_NAME || link.destination.node_ref == SB_NAME
       end
     end
 
@@ -94,7 +96,7 @@ module Netomox
 
       # @return [TpRef, nil] nil if not found
       def find_shutdown_endpoint
-        find_endpoint_by_node(SHUTDOWN_BRIDGE_NAME)
+        find_endpoint_by_node(SB_NAME)
       end
 
       # @param [TpRef] endpoint Link endpoint

@@ -83,7 +83,7 @@ module ModelConductor
     # @param [Array<Netomox::Topology::Link>] link_pair Link pair (current)
     # @return [Hash]
     def move_bridge_link_to_shutdown(link_pair)
-      append_ep = Netomox::Topology::TpRef.from_name(Netomox::Topology::SHUTDOWN_BRIDGE_NAME, @seg_ep.tp_ref, 'layer3')
+      append_ep = Netomox::Topology::TpRef.from_name(Netomox::Topology::SB_NAME, @seg_ep.tp_ref, 'layer3')
 
       {
         'remove_links' => link_pair,
@@ -102,7 +102,7 @@ module ModelConductor
     # @raise [StandardError] operation pattern error
     def operate_tobe(current_resources)
       # if segment-ep is shutdown-bridge ep: nothing to do
-      if @seg_ep.node_ref == Netomox::Topology::SHUTDOWN_BRIDGE_NAME
+      if @seg_ep.node_ref == Netomox::Topology::SB_NAME
         return {
           'remove_links' => [],
           'append_links' => [],
