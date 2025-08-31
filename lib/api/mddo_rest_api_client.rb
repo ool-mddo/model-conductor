@@ -62,6 +62,15 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [String] prefix Snapshot name prefix
+    # @return [Array<String>] list of snapshot names
+    def fetch_snapshot_list(network, prefix = '')
+      param = prefix.empty? ? {} : { prefix: }
+      response = fetch("/topologies/#{network}/snapshots", param)
+      fetch_response(response)
+    end
+
+    # @param [String] network Network name
     # @return [Hash,nil] converted topology data
     def fetch_ns_convert_table(network)
       response = fetch("/topologies/#{network}/ns_convert_table")

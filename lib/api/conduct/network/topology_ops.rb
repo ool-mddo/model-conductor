@@ -13,11 +13,15 @@ module ModelConductor
         requires :args, type: Hash, desc: 'Topology operation arguments'
       end
       post 'topology_ops' do
-        network, snapshot, command, command_args = %i[network snapshot command args].map { |key| params[key] }
-        # NOTE: command_args and topology data must be original namespace data
-        error!("snapshot:#{snapshot} is not original namespace", 500) unless snapshot =~ /original*/
+        network, command, command_args = %i[network command args].map { |key| params[key] }
+        # detect target prealloc-snapshot
+        prealloc_snapshots = rest_api.fetch_snapshot_list(network, 'original_asis_preallocated')
+        error!('original_asis_prealloc snapshot not found', 400) if prealloc_snapshots.empty?
 
-        topology_data = rest_api.fetch_topology_data(network, snapshot)
+        target_prealloc_ss = prealloc_snapshots.sort_by { |s| s[/\d+$/].to_i }.max
+        warn "# target prealloc snapshot: #{target_prealloc_ss}"
+
+        topology_data = rest_api.fetch_topology_data(network, target_prealloc_ss)
         ns_convert_table = rest_api.fetch_ns_convert_table(network)
         commander = TopologyOpsCommander.new(command, command_args, topology_data, ns_convert_table)
 

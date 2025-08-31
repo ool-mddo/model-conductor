@@ -6,6 +6,7 @@ require_relative 'network/reachability'
 require_relative 'network/snapshot'
 require_relative 'network/snapshot_diff'
 require_relative 'network/model_merge'
+require_relative 'network/topology_ops'
 
 module ModelConductor
   module ApiRoute
@@ -29,6 +30,7 @@ module ModelConductor
         mount ApiRoute::Snapshot
         mount ApiRoute::SnapshotDiff
         mount ApiRoute::ModelMerge
+        mount ApiRoute::TopologyOps
       end
     end
   end
