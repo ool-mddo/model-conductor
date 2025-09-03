@@ -14,31 +14,25 @@ module ModelConductor
       @arg_link = Netomox::Topology::Link.from_arg_link(command_args['link'])
     end
 
-    # rubocop:disable Metrics/MethodLength
+    private
 
-    # @return [Hash] response data
-    def answer
-      operation = {
+    # @return [Hash]
+    def operation_data
+      {
         'command' => @command,
         'target' => @arg_link
       }
-      current_resource = {
+    end
+
+    def current_resource_data
+      {
         'links' => [
           @orig_l3nw.find_all_links_connect(@arg_link.source), # link0
           @orig_l3nw.find_all_links_connect(@arg_link.destination) # link1
         ],
         'empty_bridges' => @orig_l3nw.find_all_empty_bridges
       }
-      # response data
-      {
-        'operation' => operation,
-        'current_resource' => current_resource,
-        'tobe_resource' => operate_tobe(current_resource)
-      }
     end
-    # rubocop:enable Metrics/MethodLength
-
-    private
 
     # rubocop:disable Metrics/MethodLength
 
@@ -144,7 +138,7 @@ module ModelConductor
     # @param [Hash] current_resource Current resource data
     # @return [Hash]
     # @raise [StandardError] operation pattern error
-    def operate_tobe(current_resource)
+    def operate_tobe_data(current_resource)
       # alias
       link0 = current_resource['links'][0] # pair of 00, 01: a->b, b->a pair
       link00 = link0[0]

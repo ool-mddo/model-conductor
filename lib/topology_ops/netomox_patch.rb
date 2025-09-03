@@ -59,6 +59,54 @@ module Netomox
       def empty_bridge_link?(link)
         link.source.node_ref == SB_NAME || link.destination.node_ref == SB_NAME
       end
+
+      # @param [Link] remove_link Link to remove
+      # @return [Array<Link>]
+      def remove_link!(remove_link)
+        @links.delete_if { |link| link == remove_link }
+      end
+
+      # @param [Link] add_link Link to add
+      # @return [Array<Link>]
+      def add_link!(add_link)
+        # nothing to do if already exists the link
+        return if @links.find { |link| link == add_link }
+
+        @links.push(add_link)
+      end
+    end
+
+    # patches for Node
+    class Node
+      # @return [Boolean] true if node is segment node
+      def segment_node?
+        @attribute.node_type == 'segment'
+      end
+
+      # @param [String] tp_name Term-point name
+      # @return [void]
+      def delete_tp_by_name!(tp_name)
+        @termination_points.delete_if { |tp| tp.name == tp_name }
+      end
+
+      # @param [TermPoint] src_tp Term-point to launder
+      # @return [void]
+      def laundering_tp!(src_tp)
+        src_tp.update_path(path_list[0], @name, src_tp.name)
+        @termination_points.push(src_tp)
+      end
+    end
+
+    # patches for Term-point
+    class TermPoint
+      # @param [String] network_name Network name
+      # @param [String] node_name Node name
+      # @param [String] tp_name Term-point name
+      # @return [void]
+      def update_path(network_name, node_name, tp_name)
+        @path = [network_name, node_name, tp_name].join('__')
+        @parent_path = [network_name, node_name].join('__')
+      end
     end
 
     # patches for link
@@ -106,6 +154,12 @@ module Netomox
         return @destination unless @destination == endpoint
 
         nil
+      end
+
+      # @param [Link] other Link to compare
+      # @return [Boolean]
+      def ==(other)
+        @source == other.source && @destination == other.destination
       end
     end
 

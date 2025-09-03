@@ -231,11 +231,48 @@ module ModelConductor
     end
 
     # @param [Array<Hash>] index_data Netoviz index
-    # @return [Object, nil]
+    # @return [Object]
     def post_topologies_index(index_data)
       response = post('/topologies/index', { index_data: })
       fetch_response(response)
     end
+
+    # @return [Hash] netoviz index
+    # @return [Array<Hash>]
+    def fetch_topologies_index
+      response = fetch('/topologies/index')
+      fetch_response(response, symbolize_names: false)
+    end
+
+    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+
+    # @param [String] network Network name
+    # @param [String] curr_prealloc_ss Current preallocated snapshot name
+    # @param [String] next_prealloc_ss Next preallocated snapshot name
+    # @return [Object, nil] netoviz index
+    # @raise StandardError if current snapshot is not found in index
+    def update_netoviz_index(network, curr_prealloc_ss, next_prealloc_ss)
+      curr_index = fetch_topologies_index
+      warn "# curr_index1: #{curr_index}"
+      curr_entry = curr_index.find { |e| e['network'] == network && e['snapshot'] == curr_prealloc_ss }
+      raise StandardError, "Current snapshot #{curr_prealloc_ss} is not found in index" if curr_entry.nil?
+
+      warn "# curr_index2: #{curr_index}"
+      warn "# curr_entry: #{curr_entry}"
+      warn "# nw: #{network}, curr_pa_ss: #{curr_prealloc_ss}, next_pa_ss: #{next_prealloc_ss}"
+      next_entry = {
+        'label' => curr_entry['label'].sub(curr_prealloc_ss, next_prealloc_ss),
+        'network' => network,
+        'snapshot' => next_prealloc_ss,
+        'file' => 'topology.json'
+      }
+      warn "# next_entry: #{next_entry}"
+
+      curr_index.push(next_entry)
+      warn "# updated curr_index: #{curr_index}"
+      post_topologies_index(curr_index)
+    end
+    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
     # @param [String] usecase Usecase name
     # @param [String] network Network name
@@ -249,10 +286,20 @@ module ModelConductor
     private
 
     # @param [String] api_path PATH of REST API
+    # @return [String] host name
+    def select_api_host(api_path)
+      first_api_path = api_path.split('/').reject(&:empty?)[0]
+      if NETOMOX_EXP_URL_RESOURCE.include?(first_api_path)
+        NETOMOX_EXP_HOST
+      else
+        BATFISH_WRAPPER_HOST
+      end
+    end
+
+    # @param [String] api_path PATH of REST API
     # @return [String] url
     def dispatch_url(api_path)
-      first_api_path = api_path.split('/').reject(&:empty?)[0]
-      api_host = NETOMOX_EXP_URL_RESOURCE.include?(first_api_path) ? NETOMOX_EXP_HOST : BATFISH_WRAPPER_HOST
+      api_host = select_api_host(api_path)
       "http://#{api_host}/#{api_path}"
     end
 

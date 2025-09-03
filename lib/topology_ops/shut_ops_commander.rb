@@ -16,30 +16,25 @@ module ModelConductor
       @node_ep, @seg_ep = normalize_link_endpoint(ep['node'], ep['tp'])
     end
 
-    # rubocop:disable Metrics/MethodLength
+    private
 
-    # @return [Hash] response data
-    def answer
-      operation = {
+    # @return [Hash]
+    def operation_data
+      {
         'command' => @command,
         'target' => Netomox::Topology::Link.from_tpref(@node_ep, @seg_ep, 'layer3')
       }
-      current_resource = {
+    end
+
+    # @return [Hash]
+    def current_resource_data
+      {
         'links' => [
           @orig_l3nw.find_all_links_connect(@node_ep)
         ],
         'empty_bridges' => @orig_l3nw.find_all_empty_bridges
       }
-      # response data
-      {
-        'operation' => operation,
-        'current_resource' => current_resource,
-        'tobe_resource' => operate_tobe(current_resource)
-      }
     end
-    # rubocop:enable Metrics/MethodLength
-
-    private
 
     # @param [String] node Node name
     # param [String] term_point Term-point name
@@ -80,17 +75,25 @@ module ModelConductor
     end
     # rubocop:enable Metrics/MethodLength
 
+    # @param [Netomox::Topology::TpRef] tpref1 Term-point 1
+    # @param [Netomox::Topology::TpRef] tpref2 Term-point 2
+    # @param [String] layer Layer
+    # @return [Array<Netomox::Topology::Link>]
+    def link_pair_from_tprefs(tpref1, tpref2, layer)
+      [
+        Netomox::Topology::Link.from_tpref(tpref1, tpref2, layer),
+        Netomox::Topology::Link.from_tpref(tpref2, tpref1, layer)
+      ]
+    end
+
     # @param [Array<Netomox::Topology::Link>] link_pair Link pair (current)
     # @return [Hash]
     def move_bridge_link_to_shutdown(link_pair)
       append_ep = Netomox::Topology::TpRef.from_name(Netomox::Topology::SB_NAME, @seg_ep.tp_ref, 'layer3')
 
       {
-        'remove_links' => link_pair,
-        'append_links' => [
-          Netomox::Topology::Link.from_tpref(@node_ep, append_ep, 'layer3'),
-          Netomox::Topology::Link.from_tpref(append_ep, @node_ep, 'layer3')
-        ],
+        'remove_links' => [link_pair],
+        'append_links' => [link_pair_from_tprefs(@node_ep, append_ep, 'layer3')],
         'command_list' => emulated_ns_ops(append_ep)
       }
     end
@@ -100,7 +103,7 @@ module ModelConductor
     # @param [Hash] current_resources Current resource data
     # @return [Hash]
     # @raise [StandardError] operation pattern error
-    def operate_tobe(current_resources)
+    def operate_tobe_data(current_resources)
       # if segment-ep is shutdown-bridge ep: nothing to do
       if @seg_ep.node_ref == Netomox::Topology::SB_NAME
         return {
