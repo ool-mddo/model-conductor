@@ -4,6 +4,51 @@ require 'netomox'
 require 'json'
 require 'httpclient'
 
+# TODO: these patches must be implemented in netomox
+module Netomox
+  module Topology
+    # patch for DiffState
+    class Networks
+      def clear_diff_state
+        @networks.each(&:clear_diff_state)
+      end
+    end
+
+    # patch for DiffState
+    class Network
+      def clear_diff_state
+        @nodes.delete_if { |node| node.diff_state.detect == :deleted }
+        @links.delete_if { |link| link.diff_state.detect == :deleted }
+
+        @nodes.each(&:clear_diff_state)
+        @links.each(&:clear_diff_state)
+      end
+    end
+
+    # patch for DiffState
+    class Node
+      def clear_diff_state
+        @termination_points.delete_if { |tp| tp.diff_state.detect == :deleted }
+        @termination_points.each(&:clear_diff_state)
+      end
+    end
+
+    # patch for DiffState
+    class TermPoint
+      def clear_diff_state
+        @diff_state = DiffState.new
+      end
+    end
+
+    # patch for DiffState
+    class Link
+      def clear_diff_state
+        @diff_state = DiffState.new
+      end
+    end
+  end
+end
+
 module ModelConductor
   # rubocop:disable Metrics/ClassLength
 
@@ -126,6 +171,10 @@ module ModelConductor
     def fetch_topology_diff(network, src_snapshot, dst_snapshot, upper_layer3: false)
       src_nws = fetch_topology_object(network, src_snapshot, upper_layer3:)
       dst_nws = fetch_topology_object(network, dst_snapshot, upper_layer3:)
+      # TODO: must be implemented in netomox
+      src_nws.clear_diff_state
+      dst_nws.clear_diff_state
+
       diff_nws = src_nws.diff(dst_nws)
       diff_nws.to_data
     end
@@ -244,29 +293,24 @@ module ModelConductor
       fetch_response(response, symbolize_names: false)
     end
 
-    # rubocop:disable Metrics/MethodLength
+    # rubocop:disable Metrics/AbcSize
 
     # @param [String] network Network name
-    # @param [String] curr_prealloc_ss Current preallocated snapshot name
-    # @param [String] next_prealloc_ss Next preallocated snapshot name
+    # @param [String] curr_orig_pa_ss_name Current original preallocated snapshot name
+    # @param [String] next_orig_pa_ss_name Next original preallocated snapshot name
     # @return [Object, nil] netoviz index
     # @raise StandardError if current snapshot is not found in index
-    def update_netoviz_index(network, curr_prealloc_ss, next_prealloc_ss)
+    def update_netoviz_index(network, curr_orig_pa_ss_name, next_orig_pa_ss_name)
       curr_index = fetch_topologies_index
-      curr_entry = curr_index.find { |e| e['network'] == network && e['snapshot'] == curr_prealloc_ss }
-      raise StandardError, "Current snapshot #{curr_prealloc_ss} is not found in index" if curr_entry.nil?
+      curr_entry = curr_index.find { |e| e['network'] == network && e['snapshot'] == curr_orig_pa_ss_name }
+      raise StandardError, "Current snapshot #{curr_orig_pa_ss_name} is not found in index" if curr_entry.nil?
 
-      next_entry = {
-        'label' => curr_entry['label'].sub(curr_prealloc_ss, next_prealloc_ss),
-        'network' => network,
-        'snapshot' => next_prealloc_ss,
-        'file' => 'topology.json'
-      }
-
-      curr_index.push(next_entry)
+      next_orig_pa_ss_label = curr_entry['label'].sub(curr_orig_pa_ss_name, next_orig_pa_ss_name)
+      curr_index.push(netoviz_index_entry(next_orig_pa_ss_label, network, next_orig_pa_ss_name))
+      curr_index.sort! { |a, b| a['snapshot'] <=> b['snapshot'] }
       post_topologies_index(curr_index)
     end
-    # rubocop:enable Metrics/MethodLength
+    # rubocop:enable Metrics/AbcSize
 
     # @param [String] usecase Usecase name
     # @param [String] network Network name
@@ -278,6 +322,20 @@ module ModelConductor
     end
 
     private
+
+    # @param [String] orig_ss_name Original snapshot name
+    # @return [String] Emulated snapshot name
+    def convert_orig_ss_name(orig_ss_name)
+      orig_ss_name.sub('original', 'emulated')
+    end
+
+    # @param [String] label Label
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [Hash]
+    def netoviz_index_entry(label, network, snapshot)
+      { 'label' => label, 'network' => network, 'snapshot' => snapshot, 'file' => 'topology.json' }
+    end
 
     # @param [String] api_path PATH of REST API
     # @return [String] host name

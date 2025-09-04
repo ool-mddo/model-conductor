@@ -7,6 +7,14 @@ module ModelConductor
   module ApiRoute
     # api topology_ops
     class TopologyOps < Grape::API
+      helpers do
+        # @param [String] orig_ss_name Original snapshot name
+        # @return [String] Converted (emulated) snapshot name
+        def convert_orig_ss_name(orig_ss_name)
+          orig_ss_name.sub('original', 'emulated')
+        end
+      end
+
       desc 'Post topology operation commands'
       params do
         requires :command, type: String, desc: 'Topology operation command'
@@ -19,17 +27,26 @@ module ModelConductor
         prealloc_snapshots = rest_api.fetch_snapshot_list(network, 'original_asis_preallocated')
         error!('original_asis_prealloc snapshot not found', 400) if prealloc_snapshots.empty?
 
-        curr_prealloc_ss = prealloc_snapshots.sort_by { |s| s[/\d+$/].to_i }.max
+        # current original_asis_preallocated(N) snapshot
+        curr_orig_pa_ss_name = prealloc_snapshots.sort_by { |s| s[/\d+$/].to_i }.max
+        curr_orig_pa_ss_data = rest_api.fetch_topology_data(network, curr_orig_pa_ss_name)
 
-        topology_data = rest_api.fetch_topology_data(network, curr_prealloc_ss)
+        # exec operation
         ns_convert_table = rest_api.fetch_ns_convert_table(network)
-        commander = TopologyOpsCommander.new(command, command_args, topology_data, ns_convert_table)
+        commander = TopologyOpsCommander.new(command, command_args, curr_orig_pa_ss_data, ns_convert_table)
+        answer_data = commander.answer
 
-        answer_data = commander.answer(network, curr_prealloc_ss)
         unless dry_run
-          next_prealloc_ss = curr_prealloc_ss.sub(/\d+$/) { |m| m.to_i + 1 }
-          rest_api.post_topology_data(network, next_prealloc_ss, answer_data['changed_topology'])
-          rest_api.update_netoviz_index(network, curr_prealloc_ss, next_prealloc_ss)
+          # save next, original_asis_preallocated(N+1) snapshot
+          next_orig_pa_ss_name = curr_orig_pa_ss_name.sub(/\d+$/) { |m| m.to_i + 1 }
+          rest_api.post_topology_data(network, next_orig_pa_ss_name, answer_data['changed_topology'])
+
+          # overwrite diff between original preallocN and prealloc(N+1)
+          next_orig_pa_ss_data_diff = rest_api.fetch_topology_diff(network, curr_orig_pa_ss_name, next_orig_pa_ss_name)
+          rest_api.post_topology_data(network, next_orig_pa_ss_name, next_orig_pa_ss_data_diff)
+
+          # update netoviz index
+          rest_api.update_netoviz_index(network, curr_orig_pa_ss_name, next_orig_pa_ss_name)
         end
 
         # response
