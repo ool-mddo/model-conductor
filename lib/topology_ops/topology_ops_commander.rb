@@ -21,9 +21,28 @@ module ModelConductor
                    end
     end
 
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
     # @return [Hash] response data
-    def answer
-      @commander.answer
+    def answer(network, snapshot)
+      answer = @commander.answer
+      seasoning_commands(answer, network, snapshot)
+    end
+
+    private
+
+    # @param [Hash] answer
+    # @param [String] network network name
+    # @param [String] snapshot snapshot name
+    # @return [Hash]
+    def seasoning_commands(answer, network, snapshot)
+      answer['tobe_resource']['command_list'].each do |cmd_pair|
+        cmd_pair.each do |cmd|
+          cmd['network'] = network
+          cmd['snapshot'] = snapshot
+        end
+      end
+      answer
     end
   end
 end

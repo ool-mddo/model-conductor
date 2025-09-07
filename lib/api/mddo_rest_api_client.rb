@@ -244,7 +244,7 @@ module ModelConductor
       fetch_response(response, symbolize_names: false)
     end
 
-    # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    # rubocop:disable Metrics/MethodLength
 
     # @param [String] network Network name
     # @param [String] curr_prealloc_ss Current preallocated snapshot name
@@ -253,26 +253,20 @@ module ModelConductor
     # @raise StandardError if current snapshot is not found in index
     def update_netoviz_index(network, curr_prealloc_ss, next_prealloc_ss)
       curr_index = fetch_topologies_index
-      warn "# curr_index1: #{curr_index}"
       curr_entry = curr_index.find { |e| e['network'] == network && e['snapshot'] == curr_prealloc_ss }
       raise StandardError, "Current snapshot #{curr_prealloc_ss} is not found in index" if curr_entry.nil?
 
-      warn "# curr_index2: #{curr_index}"
-      warn "# curr_entry: #{curr_entry}"
-      warn "# nw: #{network}, curr_pa_ss: #{curr_prealloc_ss}, next_pa_ss: #{next_prealloc_ss}"
       next_entry = {
         'label' => curr_entry['label'].sub(curr_prealloc_ss, next_prealloc_ss),
         'network' => network,
         'snapshot' => next_prealloc_ss,
         'file' => 'topology.json'
       }
-      warn "# next_entry: #{next_entry}"
 
       curr_index.push(next_entry)
-      warn "# updated curr_index: #{curr_index}"
       post_topologies_index(curr_index)
     end
-    # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+    # rubocop:enable Metrics/MethodLength
 
     # @param [String] usecase Usecase name
     # @param [String] network Network name
