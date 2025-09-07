@@ -3,8 +3,6 @@
 require_relative 'ops_commander_base'
 
 module ModelConductor
-  # rubocop:disable Metrics/ClassLength
-
   # connect_link command generator for manual topology operation
   class LinkOpsCommander < OpsCommanderBase
     # @param [String] command Command name
@@ -33,22 +31,6 @@ module ModelConductor
           @orig_l3nw.find_all_links_connect(@arg_link.destination) # link1
         ],
         'empty_bridges' => @orig_l3nw.find_all_empty_bridges
-      }
-    end
-
-    # @param [String] command Command name
-    # @param [String] br_l3m Bridge name (model)
-    # @param [String] tp_l3m Tp name (model)
-    # @param [String] br_l1p Bridge name (principal)
-    # @param [String] tp_l1p Tp name (principal)
-    # @return [Hash]
-    def build_worker_command(command, br_l3m, tp_l3m, br_l1p, tp_l1p)
-      {
-        '_cmd_in_model' => "ovs-vsctl #{command} #{br_l3m} #{tp_l3m}",
-        '_cmd_in_worker' => "ovs-vsctl #{command} #{br_l1p} #{tp_l1p}",
-        'operation' => command,
-        'bridge_name' => br_l1p,
-        'port_name' => tp_l1p
       }
     end
 
@@ -180,5 +162,4 @@ module ModelConductor
     end
     # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
   end
-  # rubocop:enable Metrics/ClassLength
 end

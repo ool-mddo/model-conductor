@@ -32,6 +32,22 @@ module ModelConductor
 
     private
 
+    # @param [String] command Command name
+    # @param [String] br_l3m Bridge name (model)
+    # @param [String] tp_l3m Tp name (model)
+    # @param [String] br_l1p Bridge name (principal)
+    # @param [String] tp_l1p Tp name (principal)
+    # @return [Hash]
+    def build_worker_command(command, br_l3m, tp_l3m, br_l1p, tp_l1p)
+      {
+        '_cmd_in_model' => "ovs-vsctl #{command} #{br_l3m} #{tp_l3m}",
+        '_cmd_in_worker' => "ovs-vsctl #{command} #{br_l1p} #{tp_l1p}",
+        'operation' => command,
+        'bridge_name' => br_l1p,
+        'port_name' => tp_l1p
+      }
+    end
+
     # @return [Hash]
     def operation_data
       raise NotImplementedError, 'not implemented: operation_data'

@@ -36,7 +36,9 @@ module ModelConductor
     # @param [String] snapshot snapshot name
     # @return [Hash]
     def seasoning_commands(answer, network, snapshot)
+      warn "# seasoning_commands, command_list = #{answer['tobe_resource']['command_list']}"
       answer['tobe_resource']['command_list'].each do |cmd_pair|
+        warn "# cmd_pair = #{cmd_pair}"
         cmd_pair.each do |cmd|
           cmd['network'] = network
           cmd['snapshot'] = snapshot
