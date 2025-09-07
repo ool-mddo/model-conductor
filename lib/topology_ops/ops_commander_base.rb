@@ -54,13 +54,11 @@ module ModelConductor
     # param [String] dst_br Destination bridge name
     # @return [Array<Hash>]
     def commands_to_move_tp(src_br, src_tp, dst_br)
-      # convert_table entry (emulated_namespace info)
-      ct_src_br = @name_converter.convert_node_name(src_br)
-      ct_src_tp = @name_converter.convert_tp_name(src_br, src_tp)
-      ct_dst_br = @name_converter.convert_node_name(dst_br)
       # converted names
-      src_br_l3m, src_tp_l3m, dst_br_l3m = [ct_src_br, ct_src_tp, ct_dst_br].map { |h| h['l3_model'] }
-      src_br_l1p, src_tp_l1p, dst_br_l1p = [ct_src_br, ct_src_tp, ct_dst_br].map { |h| h['l1_principal'] }
+      src_br_l3m, src_tp_l3m, dst_br_l3m = @name_converter.convert_move_targets('l3_model', src_br, src_tp, dst_br)
+      src_br_l1p, src_tp_l1p, dst_br_l1p = @name_converter.convert_move_targets('l1_principal', src_br, src_tp, dst_br)
+      # update convert table
+      @name_converter.move_tp_entry!(src_br, src_tp, dst_br)
 
       [
         build_worker_command('del-port', src_br_l3m, src_tp_l3m, src_br_l1p, src_tp_l1p),

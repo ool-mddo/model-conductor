@@ -53,6 +53,8 @@ module ModelConductor
         end
 
         # response
+        answer_data.delete('tobe_topology')
+        answer_data.delete('tobe_ns_convert_table')
         answer_data
       end
     end
