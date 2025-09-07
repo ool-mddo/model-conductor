@@ -34,27 +34,6 @@ module ModelConductor
       }
     end
 
-    # rubocop:disable Metrics/AbcSize
-
-    # @param [Netomox::Topology::TpRef] shut_ep Shutdown endpoint (current)
-    # @param [Netomox::Topology::Node] empty_bridge Empty bridge (tobe)
-    # @return [Array<Hash>] command list
-    def emulated_ns_ops(shut_ep, empty_bridge)
-      # convert table entry (emulated namespace info)
-      conv_shut_br = @name_converter.convert_node_name(shut_ep.node_ref)
-      conv_shut_tp = @name_converter.convert_tp_name(shut_ep.node_ref, shut_ep.tp_ref)
-      conv_ebr = @name_converter.convert_node_name(empty_bridge.name)
-      # converted names
-      shut_br_l1p, shut_tp_l1p, ebr_l1p = [conv_shut_br, conv_shut_tp, conv_ebr].map { |h| h['l1_principal'] }
-      shut_br_l3m, shut_tp_l3m, ebr_l3m = [conv_shut_br, conv_shut_tp, conv_ebr].map { |h| h['l3_model'] }
-
-      [
-        build_worker_command('del-port', shut_br_l3m, shut_tp_l3m, shut_br_l1p, shut_tp_l1p),
-        build_worker_command('add-port', ebr_l3m, shut_tp_l3m, ebr_l1p, shut_tp_l1p)
-      ]
-    end
-    # rubocop:enable Metrics/AbcSize
-
     # rubocop:disable Metrics/MethodLength
 
     # @param [Array<Netomox::Topology::Link>] link_pair Link pair (current)
@@ -71,7 +50,7 @@ module ModelConductor
       keep_ep = link0.find_counterpart_endpoint(shut_ep)
       new_ep = Netomox::Topology::TpRef.from_name(empty_bridge.name, shut_ep.tp_ref, 'layer3')
 
-      worker_commands = emulated_ns_ops(shut_ep, empty_bridge)
+      worker_commands = commands_to_move_tp(shut_ep.node_ref, shut_ep.tp_ref, empty_bridge.name)
 
       remove_links.push(link_pair)
       append_links.push(Netomox::Topology::Link.from_tpref(keep_ep, new_ep, 'layer3'))

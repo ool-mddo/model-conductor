@@ -53,26 +53,6 @@ module ModelConductor
       end
     end
 
-    # rubocop:disable Metrics/AbcSize
-
-    # @param [Netomox::Topology::TpRef] append_ep Append endpoint
-    # @return [Array<Hash>]
-    def emulated_ns_ops(append_ep)
-      # convert table entry (emulated namespace info)
-      conv_shut_br = @name_converter.convert_node_name(append_ep.node_ref)
-      conv_seg_br = @name_converter.convert_node_name(@seg_ep.node_ref)
-      conv_seg_tp = @name_converter.convert_tp_name(@seg_ep.node_ref, @seg_ep.tp_ref)
-      # converted names
-      shut_br_l1p, seg_br_l1p, seg_tp_l1p = [conv_shut_br, conv_seg_br, conv_seg_tp].map { |h| h['l1_principal'] }
-      shut_br_l3m, seg_br_l3m, seg_tp_l3m = [conv_shut_br, conv_seg_br, conv_seg_tp].map { |h| h['l3_model'] }
-
-      [
-        build_worker_command('del-port', seg_br_l3m, seg_tp_l3m, seg_br_l1p, seg_tp_l1p),
-        build_worker_command('add-port', shut_br_l3m, seg_tp_l3m, shut_br_l1p, seg_tp_l1p)
-      ]
-    end
-    # rubocop:enable Metrics/AbcSize
-
     # @param [Netomox::Topology::TpRef] tpref1 Term-point 1
     # @param [Netomox::Topology::TpRef] tpref2 Term-point 2
     # @param [String] layer Layer
@@ -92,7 +72,7 @@ module ModelConductor
       {
         'remove_links' => [link_pair],
         'append_links' => [link_pair_from_tprefs(@node_ep, append_ep, 'layer3')],
-        'command_list' => [emulated_ns_ops(append_ep)]
+        'command_list' => [commands_to_move_tp(@seg_ep.node_ref, @seg_ep.tp_ref, append_ep.node_ref)]
       }
     end
 

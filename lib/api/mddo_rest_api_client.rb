@@ -132,6 +132,14 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [Hash] convert_table Convert table data
+    # @return [HTTP::Message,nil] Reply
+    def post_update_ns_convert_table(network, convert_table)
+      response = post("/topologies/#{network}/ns_convert_table", { convert_table: })
+      fetch_response(response)
+    end
+
+    # @param [String] network Network name
     # @param [String] snapshot Snapshot name
     # @return [Hash,nil] converted topology data
     def fetch_converted_topology_data(network, snapshot)

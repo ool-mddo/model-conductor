@@ -5,6 +5,9 @@ module ModelConductor
   class NameConverter
     # @param [Hash] ns_convert_table Namespace convert table
     def initialize(ns_convert_table)
+      @ns_convert_table = ns_convert_table
+
+      # aliases
       @node_name_table = ns_convert_table['node_name_table']
       @tp_name_table = ns_convert_table['tp_name_table']
     end
@@ -27,6 +30,11 @@ module ModelConductor
       raise StandardError, "tp name not found in convert-table: #{tp_name}" if converted.nil?
 
       converted
+    end
+
+    # @return [Hash] Converted table
+    def to_data
+      @ns_convert_table
     end
   end
 end

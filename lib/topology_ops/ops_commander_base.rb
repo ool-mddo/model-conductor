@@ -26,7 +26,8 @@ module ModelConductor
         'operation' => operation_data,
         'current_resource' => current_resource,
         'tobe_resource' => operate_tobe,
-        'changed_topology' => changed_topology
+        'tobe_topology' => changed_topology,
+        'tobe_ns_convert_table' => @name_converter.to_data
       }
     end
 
@@ -46,6 +47,25 @@ module ModelConductor
         'bridge_name' => br_l1p,
         'port_name' => tp_l1p
       }
+    end
+
+    # param [String] src_br Source bridge name
+    # param [String] src_tp Source term-point name
+    # param [String] dst_br Destination bridge name
+    # @return [Array<Hash>]
+    def commands_to_move_tp(src_br, src_tp, dst_br)
+      # convert_table entry (emulated_namespace info)
+      ct_src_br = @name_converter.convert_node_name(src_br)
+      ct_src_tp = @name_converter.convert_tp_name(src_br, src_tp)
+      ct_dst_br = @name_converter.convert_node_name(dst_br)
+      # converted names
+      src_br_l3m, src_tp_l3m, dst_br_l3m = [ct_src_br, ct_src_tp, ct_dst_br].map { |h| h['l3_model'] }
+      src_br_l1p, src_tp_l1p, dst_br_l1p = [ct_src_br, ct_src_tp, ct_dst_br].map { |h| h['l1_principal'] }
+
+      [
+        build_worker_command('del-port', src_br_l3m, src_tp_l3m, src_br_l1p, src_tp_l1p),
+        build_worker_command('add-port', dst_br_l3m, src_tp_l3m, dst_br_l1p, src_tp_l1p)
+      ]
     end
 
     # @return [Hash]

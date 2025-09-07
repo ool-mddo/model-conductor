@@ -39,7 +39,10 @@ module ModelConductor
         unless dry_run
           # save next, original_asis_preallocated(N+1) snapshot
           next_orig_pa_ss_name = curr_orig_pa_ss_name.sub(/\d+$/) { |m| m.to_i + 1 }
-          rest_api.post_topology_data(network, next_orig_pa_ss_name, answer_data['changed_topology'])
+          rest_api.post_topology_data(network, next_orig_pa_ss_name, answer_data['tobe_topology'])
+
+          # update next, namespace convert table
+          rest_api.post_update_ns_convert_table(network, answer_data['tobe_ns_convert_table'])
 
           # overwrite diff between original preallocN and prealloc(N+1)
           next_orig_pa_ss_data_diff = rest_api.fetch_topology_diff(network, curr_orig_pa_ss_name, next_orig_pa_ss_name)
