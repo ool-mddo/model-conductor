@@ -34,7 +34,7 @@ module ModelConductor
         # exec operation
         ns_convert_table = rest_api.fetch_ns_convert_table(network)
         commander = TopologyOpsCommander.new(command, command_args, curr_orig_pa_ss_data, ns_convert_table)
-        answer_data = commander.answer
+        answer_data = commander.answer(network, curr_orig_pa_ss_name)
 
         unless dry_run
           # save next, original_asis_preallocated(N+1) snapshot
