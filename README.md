@@ -139,7 +139,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### Splice external/preallocated topology
 
-Splice external topology (external-AS topology) to snapshot topology.
+Splice external topology (external-AS and/or Layer3 pre-allocated resources topology) to snapshot topology.
 
 * POST `/conduct/<network>/<snapshot>/splice_topology`
   * `ext_topology_data`: [optional] external topology data (RFC8345 json) to splice
@@ -152,7 +152,40 @@ Splice external topology (external-AS topology) to snapshot topology.
 curl -s -X POST -H "Content-Type: application/json" \
   -d @<(jq -s '{ "l3_preallocated_resources": .[0], "ext_topology_data": .[1] }' l3p_topo.json ext_as_topo.json) \
   http://localhost:9292/conduct/mddo-bgp/original_asis/splice_topology
+```
 
+### Step-by-step topology operation
+
+For manual-steps usecase.
+
+Generate topology data based on the specified command. Target is original/preallocated(N) snapshot,
+and it generates next preallocated(N+1) snapshot.
+
+command:
+- connect_link: "shut to no-shut" operation
+- shutdown_intf: "no-shut to shut" operation
+
+* POST `/conduct/<network>/topology_ops`
+  * `command`: command name
+  * `dry_run`: [optional] dry-run flag (default:false)
+  * `args`: arguments for each command
+
+```shell
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{ "command": "connect_link", "args": { "link": { "source": { "node": "as65550-edge01", "tp": "Ethernet3" }, "destination": { "node": "edge-tk12", "tp": "ge-0/0/0.0" } } } } }}' \
+  http://localhost:9292/conduct/mddo-bgp/topology_ops
+```
+```shell
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{ "command": "shutdown_intf", "args": { "interface": { "node": "as65550-edge01", "tp": "Ethernet3" } } }' \
+  http://localhost:9292/conduct/mddo-bgp/topology_ops
+```
+
+Get current/next target snapshot name of topology-ops API.
+* GET `/conduct/<network>/topology_ops_targets`
+
+```shell
+curl http://localhost:9292/conduct/mddo-bgp/topology_ops_targets
 ```
 
 ### Add node/term-point attribute data
