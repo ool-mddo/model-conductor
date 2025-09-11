@@ -13,6 +13,32 @@ module ModelConductor
         def convert_orig_ss_name(orig_ss_name)
           orig_ss_name.sub('original', 'emulated')
         end
+
+        # @param [String] network Network name
+        # @return [String] Current original prealloc-snapshot name
+        def current_orig_pa_ss_name(network)
+          # detect target prealloc-snapshot
+          prealloc_snapshots = rest_api.fetch_snapshot_list(network, 'original_asis_preallocated')
+          error!('original_asis_prealloc snapshot not found', 400) if prealloc_snapshots.empty?
+          prealloc_snapshots.sort_by { |s| s[/\d+$/].to_i }.max
+        end
+
+        # @param [String] network Network name
+        # @return [String] Next original prealloc-snapshot name
+        def next_orig_pa_ss_name(network)
+          # detect target prealloc-snapshot
+          curr_orig_pa_ss_name = current_orig_pa_ss_name(network)
+          curr_orig_pa_ss_name.sub(/\d+$/) { |m| m.to_i + 1 }
+        end
+      end
+
+      desc 'Get target preallocated snapshot names'
+      get 'topology_ops_targets' do
+        network = params[:network]
+        {
+          'current' => current_orig_pa_ss_name(network),
+          'next' => next_orig_pa_ss_name(network)
+        }
       end
 
       desc 'Post topology operation commands'
@@ -23,12 +49,9 @@ module ModelConductor
       end
       post 'topology_ops' do
         network, command, command_args, dry_run = %i[network command args dry_run].map { |key| params[key] }
-        # detect target prealloc-snapshot
-        prealloc_snapshots = rest_api.fetch_snapshot_list(network, 'original_asis_preallocated')
-        error!('original_asis_prealloc snapshot not found', 400) if prealloc_snapshots.empty?
 
         # current original_asis_preallocated(N) snapshot
-        curr_orig_pa_ss_name = prealloc_snapshots.sort_by { |s| s[/\d+$/].to_i }.max
+        curr_orig_pa_ss_name = current_orig_pa_ss_name(network)
         curr_orig_pa_ss_data = rest_api.fetch_topology_data(network, curr_orig_pa_ss_name)
 
         # exec operation
@@ -38,7 +61,7 @@ module ModelConductor
 
         unless dry_run
           # save next, original_asis_preallocated(N+1) snapshot
-          next_orig_pa_ss_name = curr_orig_pa_ss_name.sub(/\d+$/) { |m| m.to_i + 1 }
+          next_orig_pa_ss_name = next_orig_pa_ss_name(network)
           rest_api.post_topology_data(network, next_orig_pa_ss_name, answer_data['tobe_topology'])
 
           # update next, namespace convert table
