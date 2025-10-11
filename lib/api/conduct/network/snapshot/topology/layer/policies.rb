@@ -8,11 +8,9 @@ module ModelConductor
     # api policies
     class Policies < Grape::API
       desc 'Push node policies in a layer'
-      # rubocop:disable Style:RedundantArrayConstructor
       params do
         requires :node, type: Array, desc: 'Patch data to overwrite'
       end
-      # rubocop:enable Style:RedundantArrayConstructor
       post 'policies' do
         network, snapshot, layer, node_patches = %i[network snapshot layer node].map { |key| params[key] }
 

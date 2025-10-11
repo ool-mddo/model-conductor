@@ -29,6 +29,7 @@ module ModelConductor
     }.freeze
 
     extend Forwardable
+
     # @!method []
     #   @see Hash#[]
     def_delegators :@compared, :[]

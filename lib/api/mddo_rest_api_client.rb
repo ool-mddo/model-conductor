@@ -62,6 +62,15 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [String] prefix Snapshot name prefix
+    # @return [Array<String>] list of snapshot names
+    def fetch_snapshot_list(network, prefix = '')
+      param = prefix.empty? ? {} : { prefix: }
+      response = fetch("/topologies/#{network}/snapshots", param)
+      fetch_response(response)
+    end
+
+    # @param [String] network Network name
     # @return [Hash,nil] converted topology data
     def fetch_ns_convert_table(network)
       response = fetch("/topologies/#{network}/ns_convert_table")
@@ -74,6 +83,14 @@ module ModelConductor
     # @return [HTTP::Message,nil] Reply
     def post_init_ns_convert_table(network, origin_snapshot)
       response = post("/topologies/#{network}/ns_convert_table", { origin_snapshot: })
+      fetch_response(response)
+    end
+
+    # @param [String] network Network name
+    # @param [Hash] convert_table Convert table data
+    # @return [HTTP::Message,nil] Reply
+    def post_update_ns_convert_table(network, convert_table)
+      response = post("/topologies/#{network}/ns_convert_table", { convert_table: })
       fetch_response(response)
     end
 
@@ -117,6 +134,10 @@ module ModelConductor
     def fetch_topology_diff(network, src_snapshot, dst_snapshot, upper_layer3: false)
       src_nws = fetch_topology_object(network, src_snapshot, upper_layer3:)
       dst_nws = fetch_topology_object(network, dst_snapshot, upper_layer3:)
+      # TODO: must be implemented in netomox
+      src_nws.clear_diff_state
+      dst_nws.clear_diff_state
+
       diff_nws = src_nws.diff(dst_nws)
       diff_nws.to_data
     end
@@ -222,11 +243,37 @@ module ModelConductor
     end
 
     # @param [Array<Hash>] index_data Netoviz index
-    # @return [Object, nil]
+    # @return [Object]
     def post_topologies_index(index_data)
       response = post('/topologies/index', { index_data: })
       fetch_response(response)
     end
+
+    # @return [Hash] netoviz index
+    # @return [Array<Hash>]
+    def fetch_topologies_index
+      response = fetch('/topologies/index')
+      fetch_response(response, symbolize_names: false)
+    end
+
+    # rubocop:disable Metrics/AbcSize
+
+    # @param [String] network Network name
+    # @param [String] curr_orig_pa_ss_name Current original preallocated snapshot name
+    # @param [String] next_orig_pa_ss_name Next original preallocated snapshot name
+    # @return [Object, nil] netoviz index
+    # @raise StandardError if current snapshot is not found in index
+    def update_netoviz_index(network, curr_orig_pa_ss_name, next_orig_pa_ss_name)
+      curr_index = fetch_topologies_index
+      curr_entry = curr_index.find { |e| e['network'] == network && e['snapshot'] == curr_orig_pa_ss_name }
+      raise StandardError, "Current snapshot #{curr_orig_pa_ss_name} is not found in index" if curr_entry.nil?
+
+      next_orig_pa_ss_label = curr_entry['label'].sub(curr_orig_pa_ss_name, next_orig_pa_ss_name)
+      curr_index.push(netoviz_index_entry(next_orig_pa_ss_label, network, next_orig_pa_ss_name))
+      curr_index.sort! { |a, b| a['snapshot'] <=> b['snapshot'] }
+      post_topologies_index(curr_index)
+    end
+    # rubocop:enable Metrics/AbcSize
 
     # @param [String] usecase Usecase name
     # @param [String] network Network name
@@ -239,11 +286,35 @@ module ModelConductor
 
     private
 
+    # @param [String] orig_ss_name Original snapshot name
+    # @return [String] Emulated snapshot name
+    def convert_orig_ss_name(orig_ss_name)
+      orig_ss_name.sub('original', 'emulated')
+    end
+
+    # @param [String] label Label
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [Hash]
+    def netoviz_index_entry(label, network, snapshot)
+      { 'label' => label, 'network' => network, 'snapshot' => snapshot, 'file' => 'topology.json' }
+    end
+
+    # @param [String] api_path PATH of REST API
+    # @return [String] host name
+    def select_api_host(api_path)
+      first_api_path = api_path.split('/').reject(&:empty?)[0]
+      if NETOMOX_EXP_URL_RESOURCE.include?(first_api_path)
+        NETOMOX_EXP_HOST
+      else
+        BATFISH_WRAPPER_HOST
+      end
+    end
+
     # @param [String] api_path PATH of REST API
     # @return [String] url
     def dispatch_url(api_path)
-      first_api_path = api_path.split('/').reject(&:empty?)[0]
-      api_host = NETOMOX_EXP_URL_RESOURCE.include?(first_api_path) ? NETOMOX_EXP_HOST : BATFISH_WRAPPER_HOST
+      api_host = select_api_host(api_path)
       "http://#{api_host}/#{api_path}"
     end
 
