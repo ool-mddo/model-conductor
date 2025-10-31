@@ -80,9 +80,12 @@ module ModelConductor
 
     # @param [String] network Network name
     # @param [String] origin_snapshot Snapshot name to create convert table
+    # @param [String] usecase Usecase name (optional)
     # @return [HTTP::Message,nil] Reply
-    def post_init_ns_convert_table(network, origin_snapshot)
-      response = post("/topologies/#{network}/ns_convert_table", { origin_snapshot: })
+    def post_init_ns_convert_table(network, origin_snapshot, usecase = '')
+      data = { origin_snapshot: }
+      data[:usecase] = usecase unless usecase.empty?
+      response = post("/topologies/#{network}/ns_convert_table", data)
       fetch_response(response)
     end
 

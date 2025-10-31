@@ -29,6 +29,7 @@ module ModelConductor
         requires :src_ss, type: String, desc: 'Source snapshot name'
         requires :dst_ss, type: String, desc: 'Destination snapshot name'
         optional :table_origin, type: String, desc: 'Origin snapshot name to create convert table'
+        optional :usecase, type: String, desc: 'Usecase name'
       end
       post 'ns_convert/:src_ss/:dst_ss' do
         network, src_ss, dst_ss, origin_ss = %i[network src_ss dst_ss table_origin].map { |key| params[key] }
@@ -42,7 +43,7 @@ module ModelConductor
 
           # force update (initialize) convert table when table_origin snapshot is specified
           logger.info "Initialize ns convert table of network:#{network} with snapshot:#{origin_ss}"
-          rest_api.post_init_ns_convert_table(network, origin_ss)
+          rest_api.post_init_ns_convert_table(network, origin_ss, params[:usecase])
         else
           # check namespace convert table existence
           exist_ns_convert_table!(network)
