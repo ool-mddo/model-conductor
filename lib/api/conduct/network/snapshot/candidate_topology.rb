@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/generate_candidate_topologies/candidate_topology_generator'
 
 module ModelConductor
   module ApiRoute
     # API to generate candidate topologies
-    class CandidateTopology < Grape::API
+    class CandidateTopology < RestApiBase
       # rubocop:disable Metrics/BlockLength
       namespace 'candidate_topology' do
         desc 'Generate and save several candidate topologies'

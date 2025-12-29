@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 require 'grape'
+require 'lib/api/rest_api_base'
 
 module ModelConductor
   module ApiRoute
     # api namespace convert
-    class NsConvert < Grape::API
+    class NsConvert < RestApiBase
       helpers do
         # @param [String] network Network name
         # @param [String] snapshot Snapshot name

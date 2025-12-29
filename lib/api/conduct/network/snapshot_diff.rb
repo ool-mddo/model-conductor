@@ -1,11 +1,12 @@
 # frozen_string_literal: true
 
 require 'grape'
+require 'lib/api/rest_api_base'
 
 module ModelConductor
   module ApiRoute
     # namespace /snapshot_diff
-    class SnapshotDiff < Grape::API
+    class SnapshotDiff < RestApiBase
       params do
         requires :src_ss, type: String, desc: 'Source snapshot name'
         requires :dst_ss, type: String, desc: 'Destination snapshot name'
