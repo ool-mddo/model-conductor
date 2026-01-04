@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'grape'
 require 'lib/api/rest_api_base'
 require 'lib/nw_subsets/disconnected_verifiable_networks'
 require 'lib/nw_subsets/network_sets_diff'

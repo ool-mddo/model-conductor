@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'grape'
 require 'lib/api/rest_api_base'
 require 'lib/generate_topology/topology_generator'
 require_relative 'topology/layer'

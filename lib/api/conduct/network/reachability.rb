@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'grape'
 require 'lib/api/rest_api_base'
 require 'lib/reach_test/reach_tester'
 require 'lib/reach_test/reach_result_converter'

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'grape'
 require 'lib/api/rest_api_base'
 require 'lib/splice_topology/topology_splicer'
 require 'lib/splice_topology/layer3_preallocated_resource_splicer'
