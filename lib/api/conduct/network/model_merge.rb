@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 
 module ModelConductor
   module ApiRoute
     # namespace /model_merge
-    class ModelMerge < Grape::API
+    class ModelMerge < RestApiBase
       params do
         requires :src_ss, type: String, desc: 'Source snapshot name (as-is)'
         requires :dst_ss, type: String, desc: 'Destination snapshot name (to-be)'

@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/bgp_manipulation/node_patch'
 
 module ModelConductor
   module ApiRoute
     # api policies
-    class Policies < Grape::API
+    class Policies < RestApiBase
       desc 'Push node policies in a layer'
       params do
         requires :node, type: Array, desc: 'Patch data to overwrite'

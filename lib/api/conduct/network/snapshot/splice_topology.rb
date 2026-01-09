@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/splice_topology/topology_splicer'
 require 'lib/splice_topology/layer3_preallocated_resource_splicer'
 
 module ModelConductor
   module ApiRoute
     # api splice_topology
-    class SpliceTopology < Grape::API
+    class SpliceTopology < RestApiBase
       desc 'Post external bgp topology data and splice it to (internal) topology data'
       params do
         optional :ext_topology_data, type: Hash, desc: 'External topology data to splice'

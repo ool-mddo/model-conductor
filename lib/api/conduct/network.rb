@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require_relative 'network/ns_convert'
 require_relative 'network/reachability'
 require_relative 'network/snapshot'
@@ -11,7 +11,7 @@ require_relative 'network/topology_ops'
 module ModelConductor
   module ApiRoute
     # namespace /network
-    class Network < Grape::API
+    class Network < RestApiBase
       params do
         requires :network, type: String, desc: 'Network name'
       end

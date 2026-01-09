@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/reach_test/reach_tester'
 require 'lib/reach_test/reach_result_converter'
 
 module ModelConductor
   module ApiRoute
     # api L3 reachability test
-    class Reachability < Grape::API
+    class Reachability < RestApiBase
       desc 'Test L3 reachability with test-pattern for multiple snapshot in a network'
       params do
         # rubocop:disable Style/RedundantArrayConstructor

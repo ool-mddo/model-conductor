@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require_relative 'layer/policies'
 
 module ModelConductor
   module ApiRoute
     # api layer
-    class Layer < Grape::API
+    class Layer < RestApiBase
       params do
         requires :layer, type: String, desc: 'Network layer'
       end

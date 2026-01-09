@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/generate_topology/topology_generator'
 require_relative 'topology/layer'
 
 module ModelConductor
   module ApiRoute
     # api topology
-    class Topology < Grape::API
+    class Topology < RestApiBase
       namespace 'topology' do
         desc 'Post (generate and register) topology data from configs'
         params do

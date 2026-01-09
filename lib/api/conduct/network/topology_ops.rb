@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/topology_ops/topology_ops_commander'
 
 module ModelConductor
   module ApiRoute
     # api topology_ops
-    class TopologyOps < Grape::API
+    class TopologyOps < RestApiBase
       helpers do
         # @param [String] orig_ss_name Original snapshot name
         # @return [String] Converted (emulated) snapshot name

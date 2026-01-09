@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require 'grape'
+require 'lib/api/rest_api_base'
 require 'lib/nw_subsets/disconnected_verifiable_networks'
 require 'lib/nw_subsets/network_sets_diff'
 
 module ModelConductor
   module ApiRoute
     # api subsets and subsets_diff
-    class Subsets < Grape::API
+    class Subsets < RestApiBase
       desc 'Subsets of a snapshot'
       get 'subsets' do
         network, snapshot = %i[network snapshot].map { |key| params[key] }
