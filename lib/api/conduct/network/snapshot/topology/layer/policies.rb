@@ -14,7 +14,7 @@ module ModelConductor
       end
       post 'policies' do
         network, snapshot, layer, node_patches = %i[network snapshot layer node].map { |key| params[key] }
-        warn "# policies: nw=#{network}, ss=#{snapshot}, data=#{node_patches}"
+        warn "patch policies: nw=#{network}, ss=#{snapshot}, layer=#{layer}"
 
         # NOTE: Currently, the POST policies API can only be executed at the bgp_proc layer.
         error!("Layer:#{layer} is not layer3 or bgp-proc", 500) unless %w[layer3 bgp_proc].include?(layer)
