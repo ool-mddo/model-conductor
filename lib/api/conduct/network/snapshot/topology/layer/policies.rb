@@ -17,7 +17,7 @@ module ModelConductor
         warn "patch policies: nw=#{network}, ss=#{snapshot}, layer=#{layer}"
 
         # NOTE: Currently, the POST policies API can only be executed at the bgp_proc layer.
-        error!("Layer:#{layer} is not layer3 or bgp-proc", 500) unless %w[layer3 bgp_proc].include?(layer)
+        error!("Layer:#{layer} is not layer3 or bgp_proc", 500) unless %w[layer3 bgp_proc].include?(layer)
 
         # TODO: At this time, it insert json-based objects directly,
         #   but it must be converted Netomox::Topology object to operate/verify data.
@@ -25,7 +25,7 @@ module ModelConductor
         # NOTE: fetch json data (json-hash object), NOT Netomox::Topology object
         topology_data = rest_api.fetch_topology_data(network, snapshot)
 
-        model_patcher = if layer == 'bgp-proc'
+        model_patcher = if layer == 'bgp_proc'
                           BgpPolicyPatcher.new(topology_data)
                         elsif layer == 'layer3'
                           FirewallPolicyPatcher.new(topology_data)
