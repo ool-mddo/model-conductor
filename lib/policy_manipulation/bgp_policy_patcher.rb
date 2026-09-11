@@ -2,7 +2,7 @@
 
 module ModelConductor
   # Patch bgp-policy data to bgp-proc node
-  class ModelPatcher
+  class BgpPolicyPatcher
     # alias: node attribute key
     NODE_ATTR_KEY = 'mddo-topology:bgp-proc-node-attributes'
     # alias: node tp key
