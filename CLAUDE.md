@@ -85,6 +85,28 @@ bundle install
 **注意:** `parse_seg_tp` は ospf_area の Seg TP 名 (`{orig_node}_{orig_tp}`) を tp_mapping への逆引きで解決。
 TP 名に `_` を含むノード名がある場合は曖昧性が生じる可能性があるが、現行データでは問題なし。
 
+### conduit_topology API エンドポイント
+
+`POST /conduct/:network/:snapshot/conduit_topology`
+
+パラメータ:
+- `usecase` (String) — ユースケース名（例: `refocus_topology`）
+- `blueprint_snapshot` (String) — blueprint snapshot 名（例: `original_asis_blueprint`）
+
+処理:
+1. 既存の `*_conduitN` スナップショットを削除
+2. blueprint topology を netomox-exp から取得
+3. original topology を netomox-exp から取得（`upper_layer3: false`）
+4. `ConduitTopologyGenerator` で conduit topology を生成
+5. 各 conduit を `{snapshot}_conduit1`, `{snapshot}_conduit2`, ... として保存
+
+レスポンス: `[{snapshot: "original_asis_conduit1"}, ...]`
+
+### MddoRestApiClient の追加メソッド
+
+- `delete_snapshot(network, snapshot)` — `DELETE /topologies/:nw/:ss` を呼び出してスナップショットを削除
+- `fetch_blueprint_topology_data(usecase, network, snapshot)` — `GET /usecases/:uc/:nw/:ss/topology` で blueprint topology を取得（`symbolize_names: false`）
+
 ### json 3.x では symbolize_names をキーワード引数で渡す
 
 json 2.x まで許容されていた `JSON.parse(str, { symbolize_names: true })` はjson 3.x で `ArgumentError` になる。必ずキーワード引数形式を使うこと:
