@@ -5,6 +5,7 @@ require_relative 'snapshot/subsets'
 require_relative 'snapshot/splice_topology'
 require_relative 'snapshot/topology'
 require_relative 'snapshot/candidate_topology'
+require_relative 'snapshot/conduit_topology'
 
 module ModelConductor
   module ApiRoute
@@ -18,6 +19,7 @@ module ModelConductor
         mount ApiRoute::SpliceTopology
         mount ApiRoute::Topology
         mount ApiRoute::CandidateTopology
+        mount ApiRoute::ConduitTopology
       end
     end
   end

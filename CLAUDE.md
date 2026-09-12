@@ -67,6 +67,12 @@ bundle install
 
 `ALLOWED_USECASES = %w[pni_te multi_region_te multi_src_as_te]`（`candidate_topology_generator.rb`）。他のユースケースは拒否される。
 
+### ConduitTopologyGenerator の土管化ロジックは未実装 (stub)
+
+`lib/generate_conduit_topology/conduit_topology_generator.rb` の `generate` メソッドは現在 pass-through stub。
+blueprint topology の network 配列の要素数だけ conduit を作成するが、各 conduit の topology は original_asis をそのまま保存する。
+実ロジックは今後このクラスに実装する。
+
 ### json 3.x では symbolize_names をキーワード引数で渡す
 
 json 2.x まで許容されていた `JSON.parse(str, { symbolize_names: true })` はjson 3.x で `ArgumentError` になる。必ずキーワード引数形式を使うこと:
