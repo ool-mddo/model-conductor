@@ -332,7 +332,7 @@ module ModelConductor
     # @param [Boolean] symbolize_names Symbolize names of response body (default: true)
     # @return [Object, nil]
     def fetch_response(response, symbolize_names: true)
-      error_response?(response) ? nil : JSON.parse(response.body, { symbolize_names: })
+      error_response?(response) ? nil : JSON.parse(response.body, symbolize_names:)
     end
   end
   # rubocop:enable Metrics/ClassLength

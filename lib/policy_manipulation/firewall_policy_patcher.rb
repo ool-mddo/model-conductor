@@ -12,8 +12,8 @@ module ModelConductor
       @networks = topology_data['ietf-network:networks']['network'] # alias
     end
 
-    # @param [String] layer_name Target layer name to patch (== 'bgp_proc')
-    # @param [Array] node_patches Patch data to node (RFC83450-based diff data)
+    # @param [String] layer_name Target layer name to patch
+    # @param [Array] node_patches Patch data to node (RFC8345-based diff data)
     # @return [Hash] Error or Patched topology data
     #   Error data : { error: <http error status code>, message: <string> }
     def patch_nodes(layer_name, node_patches)
@@ -24,32 +24,42 @@ module ModelConductor
         return { error: 500, message: }
       end
 
-      node_patches.each do |node_patch|
-        target_node = layer['node'].find { |node| node['node-id'] == node_patch['node-id'] }
-        if target_node.nil?
-          message = "Node:#{node_patch['node-id']} is not found in #{layer_name}"
-          ModelConductor.logger.error message
-        end
+      node_patches.each { |node_patch| apply_node_patch(layer, layer_name, node_patch) }
+      @topology
+    end
 
-        # patch node
-        #   node_patch ~ {
-        #     [ { "node-id": node-name, "flag": ["firewall"], "l3-node-attributes": { "firewall": {...}} }, ...]
-        #   }
+    private
 
-        # merge "l3-node-attributes" and "firewall"
-        node_patch[NODE_ATTR_KEY].each_key do |patch_attr_key|
-          if target_node[NODE_ATTR_KEY].key?(patch_attr_key)
-            message = "Attr key overwrite:#{patch_attr_key}: #{target_node['node-id']}"
-            ModelConductor.logger.warn message
-          end
-          target_node[NODE_ATTR_KEY][patch_attr_key] = node_patch[NODE_ATTR_KEY][patch_attr_key]
-        end
-        # merge "flag"
-        target_node['flag'] = [] if target_node['flag'].nil?
-        target_node['flag'] = target_node['flag'] | node_patch['flag']
+    # @param [Hash] layer Layer data
+    # @param [String] layer_name Layer name (for error message)
+    # @param [Hash] node_patch Patch data for a single node
+    def apply_node_patch(layer, layer_name, node_patch)
+      target_node = layer['node'].find { |node| node['node-id'] == node_patch['node-id'] }
+      if target_node.nil?
+        ModelConductor.logger.error "Node:#{node_patch['node-id']} is not found in #{layer_name}"
+        return
       end
 
-      @topology
+      apply_node_attrs(target_node, node_patch)
+      apply_node_flags(target_node, node_patch)
+    end
+
+    # @param [Hash] target_node Target node data
+    # @param [Hash] node_patch Patch data
+    def apply_node_attrs(target_node, node_patch)
+      node_patch[NODE_ATTR_KEY].each_key do |patch_attr_key|
+        if target_node[NODE_ATTR_KEY].key?(patch_attr_key)
+          ModelConductor.logger.warn "Attr key overwrite:#{patch_attr_key}: #{target_node['node-id']}"
+        end
+        target_node[NODE_ATTR_KEY][patch_attr_key] = node_patch[NODE_ATTR_KEY][patch_attr_key]
+      end
+    end
+
+    # @param [Hash] target_node Target node data
+    # @param [Hash] node_patch Patch data
+    def apply_node_flags(target_node, node_patch)
+      target_node['flag'] ||= []
+      target_node['flag'] |= node_patch['flag']
     end
   end
 end
