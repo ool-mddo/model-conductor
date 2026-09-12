@@ -67,11 +67,23 @@ bundle install
 
 `ALLOWED_USECASES = %w[pni_te multi_region_te multi_src_as_te]`（`candidate_topology_generator.rb`）。他のユースケースは拒否される。
 
-### ConduitTopologyGenerator の土管化ロジックは未実装 (stub)
+### ConduitTopologyGenerator の土管化ロジック
 
-`lib/generate_conduit_topology/conduit_topology_generator.rb` の `generate` メソッドは現在 pass-through stub。
-blueprint topology の network 配列の要素数だけ conduit を作成するが、各 conduit の topology は original_asis をそのまま保存する。
-実ロジックは今後このクラスに実装する。
+`lib/generate_conduit_topology/` に以下のファイルが実装済み:
+
+- `blueprint_network.rb` — BlueprintNetwork クラス。blueprint の node supports を layer3 ノード名まで再帰的に解決。NodeGroup struct を定義。
+- `layer3_conduit_builder.rb` — Layer3ConduitBuilder クラス。conduit layer3 ネットワーク・node_mapping・tp_mapping を生成。
+- `ospf_conduit_builder.rb` — OspfConduitBuilder クラス。node_mapping/tp_mapping を使って各 ospf_area conduit を生成。
+- `conduit_topology_generator.rb` — ConduitTopologyGenerator クラス。blueprint ネットワーク 1 つあたり 1 つの conduit topology を生成するオーケストレーター。
+
+**土管化ルール:**
+- Firewall ノード (top-level `flag` に `"firewall"` を含む): 全ての元ノードを個別に保持。TP 名・属性はそのまま
+- Router ノード (blueprint でグループ化): 代表ノード 1 つに集約。外部接続 TP のみ eth1, eth2, ... に rename
+- Segment ノード: グループ間をまたぐ(外部)セグメントのみ自動生成。同一グループ内の内部セグメントは除外
+- ospf_area: layer3 の node_mapping/tp_mapping を共有して同様の変換を適用
+
+**注意:** `parse_seg_tp` は ospf_area の Seg TP 名 (`{orig_node}_{orig_tp}`) を tp_mapping への逆引きで解決。
+TP 名に `_` を含むノード名がある場合は曖昧性が生じる可能性があるが、現行データでは問題なし。
 
 ### json 3.x では symbolize_names をキーワード引数で渡す
 
