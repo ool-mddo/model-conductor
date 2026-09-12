@@ -67,6 +67,23 @@ bundle install
 
 `ALLOWED_USECASES = %w[pni_te multi_region_te multi_src_as_te]`（`candidate_topology_generator.rb`）。他のユースケースは拒否される。
 
+### json 3.x では symbolize_names をキーワード引数で渡す
+
+json 2.x まで許容されていた `JSON.parse(str, { symbolize_names: true })` はjson 3.x で `ArgumentError` になる。必ずキーワード引数形式を使うこと:
+
+```ruby
+# NG (json 3.x では ArgumentError)
+JSON.parse(str, { symbolize_names: true })
+
+# OK
+JSON.parse(str, symbolize_names: true)
+```
+
+### Ruby 3.4 以降は標準ライブラリの gem を明示的に Gemfile に列挙する
+
+Ruby 3.4 から `csv` がデフォルト gem から外れた（`ostruct` は Ruby 4.0 で外れる予定）。
+`require 'csv'` などが `LoadError` になる場合は Gemfile に該当 gem を追加すること。
+
 ## Testing
 
 **テストファイルは存在しない。** 変更後は実際の API を叩いて手動確認が必要。
