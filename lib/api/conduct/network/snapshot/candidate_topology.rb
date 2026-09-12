@@ -7,7 +7,7 @@ module ModelConductor
   module ApiRoute
     # API to generate candidate topologies
     class CandidateTopology < RestApiBase
-      # rubocop:disable Metrics/BlockLength
+      # rubocop:disable-next Metrics/BlockLength
       namespace 'candidate_topology' do
         desc 'Generate and save several candidate topologies'
         params do
@@ -57,7 +57,6 @@ module ModelConductor
           end
         end
       end
-      # rubocop:enable Metrics/BlockLength
     end
   end
 end

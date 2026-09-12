@@ -18,7 +18,7 @@ module ModelConductor
     # @param [Boolean] symbolize_names (Optional, default: true)
     # @return [Object] parsed data
     def parse_json_str(str, symbolize_names: true)
-      JSON.parse(str, { symbolize_names: })
+      JSON.parse(str, symbolize_names:)
     end
   end
 end
