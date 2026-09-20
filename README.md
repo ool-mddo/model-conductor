@@ -190,43 +190,79 @@ curl http://localhost:9292/conduct/mddo-bgp/topology_ops_targets
 
 ### Add node/term-point attribute data
 
-> [!NOTE]
-> Currently, for bgp-proc only (to "patch" bgp policy or other attribute data).
-> It used in bgp-policy-parser in PNI use-case of copy-to-emulated-env demo.
-
 Add node/term-point attribute.
 
 * POST `/conduct/<network>/<snapshot>/topology/<layer>/policies`
   * `node`: node/term-point attribute (RFC8345-json format)
 
-<details>
-<summary>Patch data (bgp-policy-patch.json)</summary>
-
-```json
-{
-    "node": [
-        {
-            "node-id": "192.168.255.7",
-            "ietf-network-topology:termination-point": [
-                {
-                    "tp-id": "peer_192.168.255.2",
-                    "mddo-topology:bgp-proc-termination-point-attributes": {
-                        "import-policy": ["ibgp-export"]
-                    }
-                }
-            ]
-        }
-    ]
-}
-```
-
-</details>
+For bgp-proc layer:
+* to "patch" bgp policy or other attribute data.
+* It used in bgp-policy-parser in PNI use-case of copy-to-emulated-env demo.
 
 ```shell
 curl -s -X POST -H 'Content-Type: application/json' \
   -d @bgp-policy-patch.json \
   http://localhost:9292/conduct/biglobe_deform/original_asis/topology/bgp_proc/policies
 ```
+
+<details>
+<summary>Patch data (bgp-policy-patch.json)</summary>
+
+```json
+{
+  "node": [
+    {
+      "node-id": "192.168.255.7",
+      "ietf-network-topology:termination-point": [
+        {
+          "tp-id": "peer_192.168.255.2",
+          "mddo-topology:bgp-proc-termination-point-attributes": {
+              "import-policy": ["ibgp-export"]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+</details>
+
+For layer3 layer:
+* to "patch" firewall policy attribute data.
+* It used in firewall-policy-parser in refocus-topology use-case of candidate-topology demo.
+
+```shell
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d @firewall-policy-patch.json \
+  http://localhost:9292/conduct/mddo-fw/original_asis/topology/layer3/policies
+```
+
+<details>
+<summary>Patch data (firewall-policy-patch.json)</summary>
+
+> [!NOTE]
+> `firewall` attribute is defined for Junos (vSRX) firewall. It is vendor-specific data.
+
+```json
+{
+  "node": [
+    {
+      "node-id": "site-a-fw-1",
+      "mddo-topology:l3-node-attributes": {
+        "firewall": {
+          "node": "site-a-fw-1",
+          "pair": { ... },
+          "policies": [],
+          "zones": []
+        }
+      }
+    }
+  ]
+}
+```
+
+</details>
 
 ### Generate candidate config
 
@@ -260,6 +296,21 @@ flow_data: flows/event # csv
 ```
 </details>
 
+### Generate conduit topologies
+
+Generate conduit topologies from original_asis and blueprint topology.
+
+* POST `/conduit/<network>/<snapshot>/conduit_topology`
+  * `usecase`: Usecase name
+  * `bluieprint_snapshot`: Name of blueprint snapshot
+    * GIVEN: defined in usecase dir
+    * Abstract topology for target (original_asis) snapshot (RFC8345 format json)
+
+```shell
+  curl -s -X POST -H "Content-Type: application/json" \
+    -d '{"usecase": "refocus_topology", "blueprint_snapshot": "original_asis_blueprint"}' \
+    http://localhost:9292/conduct/mddo-fw/original_asis/conduit_topology
+```
 
 ## Development
 

@@ -278,6 +278,23 @@ module ModelConductor
     end
     # rubocop:enable Metrics/AbcSize
 
+    # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
+    # @return [HTTP::Message] reply
+    def delete_snapshot(network, snapshot)
+      delete("/topologies/#{network}/#{snapshot}")
+    end
+
+    # @param [String] usecase Usecase name
+    # @param [String] network Network name
+    # @param [String] snapshot Blueprint snapshot name
+    # @return [Hash, nil] topology data
+    def fetch_blueprint_topology_data(usecase, network, snapshot)
+      response = fetch("/usecases/#{usecase}/#{network}/#{snapshot}/topology")
+      # NOTICE: DO NOT symbolize
+      fetch_response(response, symbolize_names: false)
+    end
+
     # @param [String] usecase Usecase name
     # @param [String] network Network name
     # @param [String] data_api Data name (API name)
