@@ -67,6 +67,14 @@ bundle install
 
 `ALLOWED_USECASES = %w[pni_te multi_region_te multi_src_as_te]`（`candidate_topology_generator.rb`）。他のユースケースは拒否される。
 
+### FW ノードアトリビュート JSON スキーマ
+
+FW ノードに関する JSON スキーマの canonical definition:
+**`playground/docs/firewall_node_attributes.md`**
+
+conduit topology 生成時の FW ノード識別は top-level `"flag": ["firewall"]` で行う
+(`node.attribute.firewall` は全ノードで常に non-nil のため使用不可)。
+
 ### ConduitTopologyGenerator の土管化ロジック
 
 `lib/generate_conduit_topology/` に以下のファイルが実装済み:
