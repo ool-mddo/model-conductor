@@ -9,7 +9,7 @@ module ModelConductor
   # For each blueprint network, builds one complete conduit topology snapshot containing
   # conduit layer3 and conduit ospf_area networks derived from the original topology.
   class ConduitTopologyGenerator
-    OSPF_AREA_PATTERN = /\Aospf_area/.freeze
+    OSPF_AREA_PATTERN = /\Aospf_area/
 
     # @param original_topology [Hash] original topology data (RFC8345 JSON, not symbolized)
     # @param blueprint_topology [Hash] blueprint topology data (not symbolized)
@@ -43,19 +43,22 @@ module ModelConductor
       raise 'Original layer3 network not found' if orig_layer3.nil?
 
       conduit_layer3, node_mapping, tp_mapping = Layer3ConduitBuilder.new(orig_layer3, blueprint_nw).build
+      conduit_ospf_networks = build_conduit_ospf_networks(node_mapping, tp_mapping)
+      sorted_ospf = sort_ospf_networks(conduit_ospf_networks)
+      { 'ietf-network:networks' => { 'network' => sorted_ospf + [conduit_layer3] } }
+    end
 
+    def build_conduit_ospf_networks(node_mapping, tp_mapping)
       ospf_networks = original_networks.select { |nw| nw['network-id'].match?(OSPF_AREA_PATTERN) }
-      conduit_ospf_networks = ospf_networks.map do |orig_ospf|
-        OspfConduitBuilder.new(orig_ospf, node_mapping, tp_mapping).build
-      end
+      ospf_networks.map { |orig_ospf| OspfConduitBuilder.new(orig_ospf, node_mapping, tp_mapping).build }
+    end
 
-      # Order: ospfX (X>0) descending, then ospf0, then layer3 (upper layers first)
-      sorted_ospf = conduit_ospf_networks.sort_by do |nw|
+    # Order: ospfX (X>0) descending, then ospf0, then layer3 (upper layers first)
+    def sort_ospf_networks(conduit_ospf_networks)
+      conduit_ospf_networks.sort_by do |nw|
         area_num = nw['network-id'][/\d+/].to_i
         area_num.zero? ? Float::INFINITY : -area_num
       end
-
-      { 'ietf-network:networks' => { 'network' => sorted_ospf + [conduit_layer3] } }
     end
   end
 end
