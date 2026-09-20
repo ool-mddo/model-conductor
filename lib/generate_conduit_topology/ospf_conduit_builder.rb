@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'set'
-
 module ModelConductor
   # Builds a conduit OSPF area topology network from the original ospf network plus the
   # node_mapping and tp_mapping produced by Layer3ConduitBuilder.
@@ -10,7 +8,7 @@ module ModelConductor
   #   - Non-segment nodes: grouped by conduit_node_name; only external TPs (in tp_mapping) kept
   #   - Segment nodes: rebuilt with conduit TP names; dropped if fewer than 2 TPs survive
   #   - supporting-termination-point updated to reference conduit layer3 node/TP names
-  class OspfConduitBuilder
+  class OspfConduitBuilder # rubocop:disable Metrics/ClassLength
     TP_KEY = 'ietf-network-topology:termination-point'
     LINK_KEY = 'ietf-network-topology:link'
     SUPPORTING_TP_KEY = 'supporting-termination-point'
@@ -48,8 +46,11 @@ module ModelConductor
 
     # Group original non-segment nodes by conduit name, build one conduit node per group
     def build_conduit_non_segment_nodes
-      groups = {}
-      @orig_nodes.each do |orig_node|
+      group_nodes_by_conduit.map { |conduit_name, orig_nodes| build_conduit_non_seg_node(conduit_name, orig_nodes) }
+    end
+
+    def group_nodes_by_conduit
+      @orig_nodes.each_with_object({}) do |orig_node, groups|
         name = orig_node['node-id']
         next if segment_name?(name)
 
@@ -59,31 +60,32 @@ module ModelConductor
         groups[conduit_name] ||= []
         groups[conduit_name] << orig_node
       end
+    end
 
-      groups.map do |conduit_name, orig_nodes|
-        conduit_tps = orig_nodes.flat_map do |orig_node|
-          (orig_node[TP_KEY] || []).filter_map do |tp|
-            orig_tp_id = tp['tp-id']
-            _conduit_node, conduit_tp = @tp_mapping[[orig_node['node-id'], orig_tp_id]]
-            next unless conduit_tp
+    def build_conduit_non_seg_node(conduit_name, orig_nodes)
+      conduit_tps = orig_nodes.flat_map { |orig_node| build_conduit_non_seg_tps(orig_node, conduit_name) }
+      representative = orig_nodes.first
+      node = {
+        'node-id' => conduit_name,
+        TP_KEY => conduit_tps,
+        SUPPORTING_NODE_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => conduit_name }],
+        OSPF_NODE_ATTR => (representative[OSPF_NODE_ATTR] || {}).dup
+      }
+      node['flag'] = representative['flag'].dup if representative['flag']
+      node
+    end
 
-            {
-              'tp-id' => conduit_tp,
-              SUPPORTING_TP_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => conduit_name, 'tp-ref' => conduit_tp }],
-              OSPF_TP_ATTR => (tp[OSPF_TP_ATTR] || {}).dup
-            }
-          end
-        end
+    def build_conduit_non_seg_tps(orig_node, conduit_name)
+      (orig_node[TP_KEY] || []).filter_map do |tp|
+        orig_tp_id = tp['tp-id']
+        _conduit_node, conduit_tp = @tp_mapping[[orig_node['node-id'], orig_tp_id]]
+        next unless conduit_tp
 
-        representative = orig_nodes.first
-        node = {
-          'node-id' => conduit_name,
-          TP_KEY => conduit_tps,
-          SUPPORTING_NODE_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => conduit_name }],
-          OSPF_NODE_ATTR => (representative[OSPF_NODE_ATTR] || {}).dup
+        {
+          'tp-id' => conduit_tp,
+          SUPPORTING_TP_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => conduit_name, 'tp-ref' => conduit_tp }],
+          OSPF_TP_ATTR => (tp[OSPF_TP_ATTR] || {}).dup
         }
-        node['flag'] = representative['flag'].dup if representative['flag']
-        node
       end
     end
 
@@ -94,53 +96,61 @@ module ModelConductor
     #   nodes: Array<Hash>
     # }
     def compute_conduit_segment_info
-      surviving_names = Set.new
-      tp_map = {}
-      nodes = []
-      seen_signatures = Set.new
-
+      acc = { surviving_names: Set.new, tp_map: {}, nodes: [], seen_signatures: Set.new }
       @orig_nodes.each do |orig_node|
         name = orig_node['node-id']
         next unless segment_name?(name)
 
-        conduit_tps = (orig_node[TP_KEY] || []).filter_map do |tp|
-          parsed = parse_seg_tp(tp['tp-id'])
-          next unless parsed
-
-          orig_node_name, orig_tp_name = parsed
-          conduit_node, conduit_tp = @tp_mapping[[orig_node_name, orig_tp_name]]
-          next unless conduit_tp
-
-          new_tp_id = "#{conduit_node}_#{conduit_tp}"
-          [tp, new_tp_id, conduit_node]
-        end
-
-        next if conduit_tps.size < 2
-
-        # Deduplicate: skip if another segment already covers the same conduit endpoint pair
-        sig = conduit_tps.map { |_, _, cn| cn }.uniq.sort.freeze
-        next unless seen_signatures.add?(sig)
-
-        surviving_names << name
-        conduit_tps.each do |(orig_tp, new_tp_id)|
-          tp_map["#{name}/#{orig_tp['tp-id']}"] = new_tp_id
-        end
-
-        nodes << {
-          'node-id' => name,
-          TP_KEY => conduit_tps.map do |(orig_tp, new_tp_id)|
-            {
-              'tp-id' => new_tp_id,
-              SUPPORTING_TP_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => name, 'tp-ref' => new_tp_id }],
-              OSPF_TP_ATTR => (orig_tp[OSPF_TP_ATTR] || {}).dup
-            }
-          end,
-          SUPPORTING_NODE_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => name }],
-          OSPF_NODE_ATTR => (orig_node[OSPF_NODE_ATTR] || {}).dup
-        }
+        process_segment_node(name, orig_node, acc)
       end
+      acc.slice(:surviving_names, :tp_map, :nodes)
+    end
 
-      { surviving_names:, tp_map:, nodes: }
+    def process_segment_node(name, orig_node, acc)
+      conduit_tps = resolve_segment_conduit_tps(orig_node)
+      return if conduit_tps.size < 2
+
+      sig = conduit_tps.map { |_, _, cn| cn }.uniq.sort.freeze
+      return unless acc[:seen_signatures].add?(sig)
+
+      register_surviving_segment(name, conduit_tps, orig_node, acc)
+    end
+
+    def register_surviving_segment(name, conduit_tps, orig_node, acc)
+      acc[:surviving_names] << name
+      conduit_tps.each { |(orig_tp, new_tp_id)| acc[:tp_map]["#{name}/#{orig_tp['tp-id']}"] = new_tp_id }
+      acc[:nodes] << build_conduit_seg_node(name, conduit_tps, orig_node)
+    end
+
+    def resolve_segment_conduit_tps(orig_node)
+      (orig_node[TP_KEY] || []).filter_map do |tp|
+        parsed = parse_seg_tp(tp['tp-id'])
+        next unless parsed
+
+        orig_node_name, orig_tp_name = parsed
+        conduit_node, conduit_tp = @tp_mapping[[orig_node_name, orig_tp_name]]
+        next unless conduit_tp
+
+        new_tp_id = "#{conduit_node}_#{conduit_tp}"
+        [tp, new_tp_id, conduit_node]
+      end
+    end
+
+    def build_conduit_seg_node(name, conduit_tps, orig_node)
+      {
+        'node-id' => name,
+        TP_KEY => conduit_tps.map { |(orig_tp, new_tp_id)| build_conduit_seg_tp(name, orig_tp, new_tp_id) },
+        SUPPORTING_NODE_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => name }],
+        OSPF_NODE_ATTR => (orig_node[OSPF_NODE_ATTR] || {}).dup
+      }
+    end
+
+    def build_conduit_seg_tp(name, orig_tp, new_tp_id)
+      {
+        'tp-id' => new_tp_id,
+        SUPPORTING_TP_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => name, 'tp-ref' => new_tp_id }],
+        OSPF_TP_ATTR => (orig_tp[OSPF_TP_ATTR] || {}).dup
+      }
     end
 
     def build_conduit_segment_nodes(seg_info)
@@ -150,37 +160,45 @@ module ModelConductor
     def build_conduit_links(seg_info)
       surviving = seg_info[:surviving_names]
       tp_map = seg_info[:tp_map]
-      links = []
+      @orig_links.filter_map { |link| convert_conduit_link(link, surviving, tp_map) }
+    end
 
-      @orig_links.each do |link|
-        src_node = link['source']['source-node']
-        src_tp = link['source']['source-tp']
-        dst_node = link['destination']['dest-node']
-        dst_tp = link['destination']['dest-tp']
-
-        if segment_name?(src_node)
-          next unless surviving.include?(src_node)
-
-          new_src_tp = tp_map["#{src_node}/#{src_tp}"]
-          next unless new_src_tp
-
-          conduit_dst, conduit_dst_tp = @tp_mapping[[dst_node, dst_tp]]
-          next unless conduit_dst_tp
-
-          links << make_link(src_node, new_src_tp, conduit_dst, conduit_dst_tp)
-        elsif segment_name?(dst_node)
-          next unless surviving.include?(dst_node)
-
-          new_dst_tp = tp_map["#{dst_node}/#{dst_tp}"]
-          next unless new_dst_tp
-
-          conduit_src, conduit_src_tp = @tp_mapping[[src_node, src_tp]]
-          next unless conduit_src_tp
-
-          links << make_link(conduit_src, conduit_src_tp, dst_node, new_dst_tp)
-        end
+    def convert_conduit_link(link, surviving, tp_map)
+      src_ep = [link['source']['source-node'], link['source']['source-tp']]
+      dst_ep = [link['destination']['dest-node'], link['destination']['dest-tp']]
+      if segment_name?(src_ep[0])
+        convert_seg_src_link(src_ep, dst_ep, surviving, tp_map)
+      elsif segment_name?(dst_ep[0])
+        convert_seg_dst_link(src_ep, dst_ep, surviving, tp_map)
       end
-      links
+    end
+
+    def convert_seg_src_link(src_ep, dst_ep, surviving, tp_map)
+      src_node, src_tp = src_ep
+      dst_node, dst_tp = dst_ep
+      return unless surviving.include?(src_node)
+
+      new_src_tp = tp_map["#{src_node}/#{src_tp}"]
+      return unless new_src_tp
+
+      conduit_dst, conduit_dst_tp = @tp_mapping[[dst_node, dst_tp]]
+      return unless conduit_dst_tp
+
+      make_link(src_node, new_src_tp, conduit_dst, conduit_dst_tp)
+    end
+
+    def convert_seg_dst_link(src_ep, dst_ep, surviving, tp_map)
+      src_node, src_tp = src_ep
+      dst_node, dst_tp = dst_ep
+      return unless surviving.include?(dst_node)
+
+      new_dst_tp = tp_map["#{dst_node}/#{dst_tp}"]
+      return unless new_dst_tp
+
+      conduit_src, conduit_src_tp = @tp_mapping[[src_node, src_tp]]
+      return unless conduit_src_tp
+
+      make_link(conduit_src, conduit_src_tp, dst_node, new_dst_tp)
     end
 
     def make_link(src_node, src_tp, dst_node, dst_tp)

@@ -36,22 +36,26 @@ module ModelConductor
     # @return [Array<String>] layer3 node names (de-duplicated)
     # @raise [RuntimeError] if any support reference cannot be resolved
     def resolve_to_layer3(supports)
-      supports.flat_map do |s|
-        ref_nw = s['network-ref']
-        ref_node = s['node-ref']
+      supports.flat_map { |s| resolve_support(s) }.uniq
+    end
 
-        if ref_nw.nil? || ref_nw == LAYER3_NETWORK_ID
-          [ref_node]
-        else
-          intermediate_nw = @blueprint_by_name[ref_nw]
-          raise "Cannot resolve support: blueprint network '#{ref_nw}' not found" if intermediate_nw.nil?
+    def resolve_support(support)
+      ref_nw = support['network-ref']
+      ref_node = support['node-ref']
+      return [ref_node] if ref_nw.nil? || ref_nw == LAYER3_NETWORK_ID
 
-          intermediate_node = (intermediate_nw['node'] || []).find { |n| n['node-id'] == ref_node }
-          raise "Cannot resolve support: node '#{ref_node}' not found in blueprint network '#{ref_nw}'" if intermediate_node.nil?
+      intermediate_node = find_blueprint_node(ref_nw, ref_node)
+      resolve_to_layer3(intermediate_node['supports'] || [])
+    end
 
-          resolve_to_layer3(intermediate_node['supports'] || [])
-        end
-      end.uniq
+    def find_blueprint_node(ref_nw, ref_node)
+      intermediate_nw = @blueprint_by_name[ref_nw]
+      raise "Cannot resolve support: blueprint network '#{ref_nw}' not found" if intermediate_nw.nil?
+
+      node = (intermediate_nw['node'] || []).find { |n| n['node-id'] == ref_node }
+      raise "Cannot resolve support: node '#{ref_node}' not found in blueprint network '#{ref_nw}'" if node.nil?
+
+      node
     end
   end
 end

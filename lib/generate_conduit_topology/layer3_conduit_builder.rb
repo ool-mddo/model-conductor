@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'ipaddr'
-require 'set'
+require_relative 'router_node_attr_merger'
 
 module ModelConductor
   # Builds a conduit layer3 topology network from the original layer3 and a blueprint network.
@@ -14,7 +13,7 @@ module ModelConductor
   #   - Firewall nodes (flag contains "firewall"): all original nodes preserved, TPs unchanged
   #   - Router nodes: collapsed to one representative node; external TPs renamed eth1, eth2, ...
   #   - Segment nodes: auto-generated from external (cross-group) segments only
-  class Layer3ConduitBuilder
+  class Layer3ConduitBuilder # rubocop:disable Metrics/ClassLength
     TP_KEY = 'ietf-network-topology:termination-point'
     LINK_KEY = 'ietf-network-topology:link'
     L3_NODE_ATTR = 'mddo-topology:l3-node-attributes'
@@ -33,29 +32,32 @@ module ModelConductor
     def build
       classified = classify_node_groups
       node_mapping = build_node_mapping(classified)
-      node_to_group = node_mapping.reject { |k, _| segment_name?(k) }
+      external_segs = build_external_segments(node_mapping)
+      tp_mapping = build_tp_mapping(classified, external_segs)
+      conduit_layer3 = assemble_conduit_layer3(classified, external_segs, tp_mapping)
+      [conduit_layer3, node_mapping, tp_mapping]
+    end
 
+    private
+
+    def build_external_segments(node_mapping)
+      node_to_group = node_mapping.reject { |k, _| segment_name?(k) }
       seg_endpoints = build_segment_endpoints
       external_segs = find_external_segments(seg_endpoints, node_to_group)
-      # Deduplicate before TP assignment: keep only the first segment per conduit endpoint pair
-      external_segs = deduplicate_segments(external_segs)
-      tp_mapping = build_tp_mapping(classified, external_segs)
+      deduplicate_segments(external_segs)
+    end
 
+    def assemble_conduit_layer3(classified, external_segs, tp_mapping)
       conduit_nodes = build_conduit_nodes(classified, tp_mapping)
       conduit_seg_nodes = build_conduit_segment_nodes(external_segs, tp_mapping)
       conduit_links = build_conduit_links(external_segs, tp_mapping)
-
-      conduit_layer3 = {
+      {
         'network-id' => 'layer3',
         'network-types' => @original_layer3['network-types'],
         'node' => conduit_nodes + conduit_seg_nodes,
         LINK_KEY => conduit_links
       }.compact
-
-      [conduit_layer3, node_mapping, tp_mapping]
     end
-
-    private
 
     # @return [Array<Hash>] [{group: NodeGroup, type: :firewall|:router}]
     def classify_node_groups
@@ -129,34 +131,42 @@ module ModelConductor
     def build_tp_mapping(classified, external_segs)
       tp_mapping = {}
       eth_counters = Hash.new(0)
-
       classified.each do |cg|
-        group = cg[:group]
         if cg[:type] == :firewall
-          group.original_node_names.each do |fw_name|
-            (find_orig_node(fw_name)[TP_KEY] || []).each do |tp|
-              tp_mapping[[fw_name, tp['tp-id']]] = [fw_name, tp['tp-id']]
-            end
-          end
+          build_fw_tp_mapping(cg[:group], tp_mapping)
         else
-          conduit_name = group.conduit_name
-          representative = group.original_node_names.first
-          ordered_members = [representative] + (group.original_node_names - [representative])
-
-          ordered_members.each do |member_name|
-            external_segs.each_value do |endpoints|
-              endpoints.each do |ep|
-                next unless ep[:node_name] == member_name
-
-                eth_counters[conduit_name] += 1
-                tp_mapping[[member_name, ep[:tp_name]]] = [conduit_name, "eth#{eth_counters[conduit_name]}"]
-              end
-            end
-          end
+          build_router_tp_mapping(cg[:group], external_segs, tp_mapping, eth_counters)
         end
       end
-
       tp_mapping
+    end
+
+    def build_fw_tp_mapping(group, tp_mapping)
+      group.original_node_names.each do |fw_name|
+        (find_orig_node(fw_name)[TP_KEY] || []).each do |tp|
+          tp_mapping[[fw_name, tp['tp-id']]] = [fw_name, tp['tp-id']]
+        end
+      end
+    end
+
+    def build_router_tp_mapping(group, external_segs, tp_mapping, eth_counters)
+      conduit_name = group.conduit_name
+      representative = group.original_node_names.first
+      ordered_members = [representative] + (group.original_node_names - [representative])
+      ordered_members.each do |member_name|
+        assign_external_tp_mappings(member_name, conduit_name, external_segs, tp_mapping, eth_counters)
+      end
+    end
+
+    def assign_external_tp_mappings(member_name, conduit_name, external_segs, tp_mapping, eth_counters)
+      external_segs.each_value do |endpoints|
+        endpoints.each do |ep|
+          next unless ep[:node_name] == member_name
+
+          eth_counters[conduit_name] += 1
+          tp_mapping[[member_name, ep[:tp_name]]] = [conduit_name, "eth#{eth_counters[conduit_name]}"]
+        end
+      end
     end
 
     def build_conduit_nodes(classified, tp_mapping)
@@ -183,19 +193,10 @@ module ModelConductor
 
     def build_router_conduit_node(group, tp_mapping)
       conduit_name = group.conduit_name
-
-      # Collect (orig_node, orig_tp) entries that map to this conduit node, sorted by eth number
-      conduit_tp_entries = tp_mapping
-        .select { |(_on, _ot), (cn, _ct)| cn == conduit_name }
-        .sort_by { |_k, (_cn, ct)| ct[/\d+/].to_i }
-
+      conduit_tp_entries = tp_entries_for_conduit(tp_mapping, conduit_name)
       conduit_tps = conduit_tp_entries.map do |(orig_node_name, orig_tp_name), (_cn, c_tp)|
-        orig_node = find_orig_node(orig_node_name)
-        orig_tp = (orig_node&.dig(TP_KEY) || []).find { |t| t['tp-id'] == orig_tp_name }
-        ip_addrs = orig_tp&.dig(L3_TP_ATTR, 'ip-address') || []
-        { 'tp-id' => c_tp, L3_TP_ATTR => { 'ip-address' => ip_addrs, 'flag' => [] } }
+        build_router_conduit_tp(orig_node_name, orig_tp_name, c_tp)
       end
-
       {
         'node-id' => conduit_name,
         TP_KEY => conduit_tps,
@@ -203,51 +204,39 @@ module ModelConductor
       }
     end
 
+    def tp_entries_for_conduit(tp_mapping, conduit_name)
+      tp_mapping
+        .select { |(_on, _ot), (cn, _ct)| cn == conduit_name }
+        .sort_by { |_k, (_cn, ct)| ct[/\d+/].to_i }
+    end
+
+    def build_router_conduit_tp(orig_node_name, orig_tp_name, c_tp)
+      orig_node = find_orig_node(orig_node_name)
+      orig_tp = (orig_node&.dig(TP_KEY) || []).find { |t| t['tp-id'] == orig_tp_name }
+      ip_addrs = orig_tp&.dig(L3_TP_ATTR, 'ip-address') || []
+      { 'tp-id' => c_tp, L3_TP_ATTR => { 'ip-address' => ip_addrs, 'flag' => [] } }
+    end
+
     def merge_router_attrs(original_node_names, tp_mapping, conduit_name)
-      all_prefixes = []
-      all_static_routes = []
-
-      original_node_names.each do |node_name|
-        orig_node = find_orig_node(node_name)
-        attrs = orig_node&.dig(L3_NODE_ATTR) || {}
-
-        # Include only prefixes corresponding to surviving (external) TPs
-        external_tp_names = tp_mapping
-          .select { |k, v| k.first == node_name && v.first == conduit_name }
-          .map { |k, _v| k.last }
-        surviving_ips = (orig_node&.dig(TP_KEY) || [])
-          .select { |tp| external_tp_names.include?(tp['tp-id']) }
-          .flat_map { |tp| tp.dig(L3_TP_ATTR, 'ip-address') || [] }
-        surviving_prefixes = surviving_ips.filter_map { |ip| ip_to_prefix(ip) }
-
-        (attrs['prefix'] || []).each do |pfx|
-          next unless surviving_prefixes.include?(pfx['prefix'])
-
-          all_prefixes << pfx unless all_prefixes.any? { |p| p['prefix'] == pfx['prefix'] }
-        end
-
-        (attrs['static-route'] || []).each do |sr|
-          all_static_routes << sr unless all_static_routes.include?(sr)
-        end
-      end
-
-      { 'node-type' => 'node', 'prefix' => all_prefixes, 'static-route' => all_static_routes, 'flag' => [] }
+      RouterNodeAttrMerger.new(@orig_nodes).merge(original_node_names, tp_mapping, conduit_name)
     end
 
     def build_conduit_segment_nodes(external_segs, tp_mapping)
-      external_segs.map do |seg_name, endpoints|
-        conduit_tps = endpoints.map do |ep|
-          conduit_node, conduit_tp = tp_mapping[[ep[:node_name], ep[:tp_name]]]
-          raise "No TP mapping for #{ep[:node_name]}/#{ep[:tp_name]}" unless conduit_tp
+      external_segs.map { |seg_name, endpoints| build_segment_node(seg_name, endpoints, tp_mapping) }
+    end
 
-          { 'tp-id' => "#{conduit_node}_#{conduit_tp}", L3_TP_ATTR => {} }
-        end
-        {
-          'node-id' => seg_name,
-          TP_KEY => conduit_tps,
-          L3_NODE_ATTR => { 'node-type' => 'segment', 'prefix' => [], 'flag' => [] }
-        }
+    def build_segment_node(seg_name, endpoints, tp_mapping)
+      conduit_tps = endpoints.map do |ep|
+        conduit_node, conduit_tp = tp_mapping[[ep[:node_name], ep[:tp_name]]]
+        raise "No TP mapping for #{ep[:node_name]}/#{ep[:tp_name]}" unless conduit_tp
+
+        { 'tp-id' => "#{conduit_node}_#{conduit_tp}", L3_TP_ATTR => {} }
       end
+      {
+        'node-id' => seg_name,
+        TP_KEY => conduit_tps,
+        L3_NODE_ATTR => { 'node-type' => 'segment', 'prefix' => [], 'flag' => [] }
+      }
     end
 
     def build_conduit_links(external_segs, tp_mapping)
@@ -277,14 +266,6 @@ module ModelConductor
 
     def segment_name?(name)
       name.start_with?('Seg_')
-    end
-
-    # Convert interface IP (e.g., "172.16.1.2/30") to network prefix ("172.16.1.0/30")
-    def ip_to_prefix(ip_with_mask)
-      addr, prefix_len = ip_with_mask.split('/')
-      "#{IPAddr.new("#{addr}/#{prefix_len}")}/#{prefix_len}"
-    rescue StandardError
-      nil
     end
   end
 end
