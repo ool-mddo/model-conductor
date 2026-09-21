@@ -17,10 +17,11 @@ module ModelConductor
         end
 
         # @param [String] network Network name
+        # @param [String] snapshot Snapshot name
         # @return [void]
-        def exist_ns_convert_table!(network)
-          table = rest_api.fetch_ns_convert_table(network)
-          error!("Namespace convert table of network:#{network} is not found", 404) if table.nil?
+        def exist_ns_convert_table!(network, snapshot)
+          table = rest_api.fetch_ns_convert_table(network, snapshot)
+          error!("Namespace convert table of network:#{network}/#{snapshot} is not found", 404) if table.nil?
         end
       end
 
@@ -46,7 +47,7 @@ module ModelConductor
           rest_api.post_init_ns_convert_table(network, origin_ss, params[:usecase])
         else
           # check namespace convert table existence
-          exist_ns_convert_table!(network)
+          exist_ns_convert_table!(network, src_ss)
         end
 
         converted_topology_data = rest_api.fetch_converted_topology_data(network, src_ss)
