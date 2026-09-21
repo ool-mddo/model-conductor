@@ -115,6 +115,24 @@ TP 名に `_` を含むノード名がある場合は曖昧性が生じる可能
 - `delete_snapshot(network, snapshot)` — `DELETE /topologies/:nw/:ss` を呼び出してスナップショットを削除
 - `fetch_blueprint_topology_data(usecase, network, snapshot)` — `GET /usecases/:uc/:nw/:ss/topology` で blueprint topology を取得（`symbolize_names: false`）
 
+### ns_convert_table API はスナップショット単位
+
+変換テーブルは per-network ではなく **per-snapshot** で管理される（netomox-exp v1.19.0-dev 以降）。
+
+| メソッド | 旧 URL | 新 URL |
+|---|---|---|
+| `fetch_ns_convert_table(network, snapshot)` | `GET /topologies/:nw/ns_convert_table` | `GET /topologies/:nw/:ss/ns_convert_table` |
+| `post_init_ns_convert_table(network, origin_ss, ...)` | `POST /topologies/:nw/ns_convert_table` (body に `origin_snapshot`) | `POST /topologies/:nw/:ss/ns_convert_table` (`:ss` が source snapshot) |
+| `post_update_ns_convert_table(network, snapshot, table)` | `POST /topologies/:nw/ns_convert_table` (body に `convert_table`) | `POST /topologies/:nw/:ss/ns_convert_table` (body に `convert_table`) |
+
+**`topology_ops.rb` での使用:**
+- `fetch_ns_convert_table(network, curr_orig_pa_ss_name)` — 現在の preallocated snapshot のテーブルを読む
+- `post_update_ns_convert_table(network, next_orig_pa_ss_name, ...)` — 次の preallocated snapshot にテーブルを保存
+
+**`ns_convert.rb` での使用:**
+- `exist_ns_convert_table!(network, src_ss)` — src snapshot のテーブル存在チェック
+- `post_init_ns_convert_table(network, origin_ss, usecase)` — origin snapshot からテーブル生成・保存
+
 ### json 3.x では symbolize_names をキーワード引数で渡す
 
 json 2.x まで許容されていた `JSON.parse(str, { symbolize_names: true })` はjson 3.x で `ArgumentError` になる。必ずキーワード引数形式を使うこと:

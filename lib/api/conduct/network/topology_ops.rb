@@ -55,7 +55,7 @@ module ModelConductor
         curr_orig_pa_ss_data = rest_api.fetch_topology_data(network, curr_orig_pa_ss_name)
 
         # exec operation
-        ns_convert_table = rest_api.fetch_ns_convert_table(network)
+        ns_convert_table = rest_api.fetch_ns_convert_table(network, curr_orig_pa_ss_name)
         commander = TopologyOpsCommander.new(command, command_args, curr_orig_pa_ss_data, ns_convert_table)
         answer_data = commander.answer(network, curr_orig_pa_ss_name)
 
@@ -65,7 +65,7 @@ module ModelConductor
           rest_api.post_topology_data(network, next_orig_pa_ss_name, answer_data['tobe_topology'])
 
           # update next, namespace convert table
-          rest_api.post_update_ns_convert_table(network, answer_data['tobe_ns_convert_table'])
+          rest_api.post_update_ns_convert_table(network, next_orig_pa_ss_name, answer_data['tobe_ns_convert_table'])
 
           # overwrite diff between original preallocN and prealloc(N+1)
           next_orig_pa_ss_data_diff = rest_api.fetch_topology_diff(network, curr_orig_pa_ss_name, next_orig_pa_ss_name)

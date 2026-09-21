@@ -71,29 +71,31 @@ module ModelConductor
     end
 
     # @param [String] network Network name
+    # @param [String] snapshot Snapshot name
     # @return [Hash,nil] converted topology data
-    def fetch_ns_convert_table(network)
-      response = fetch("/topologies/#{network}/ns_convert_table")
+    def fetch_ns_convert_table(network, snapshot)
+      response = fetch("/topologies/#{network}/#{snapshot}/ns_convert_table")
       # NOTICE: DO NOT symbolize (hash keys as host/interface name are string)
       fetch_response(response, symbolize_names: false)
     end
 
     # @param [String] network Network name
-    # @param [String] origin_snapshot Snapshot name to create convert table
+    # @param [String] origin_snapshot Snapshot name to create convert table (also used as URL path)
     # @param [String] usecase Usecase name (optional)
     # @return [HTTP::Message,nil] Reply
     def post_init_ns_convert_table(network, origin_snapshot, usecase = '')
-      data = { origin_snapshot: }
+      data = {}
       data[:usecase] = usecase unless usecase.empty?
-      response = post("/topologies/#{network}/ns_convert_table", data)
+      response = post("/topologies/#{network}/#{origin_snapshot}/ns_convert_table", data)
       fetch_response(response)
     end
 
     # @param [String] network Network name
+    # @param [String] snapshot Snapshot name to save convert table
     # @param [Hash] convert_table Convert table data
     # @return [HTTP::Message,nil] Reply
-    def post_update_ns_convert_table(network, convert_table)
-      response = post("/topologies/#{network}/ns_convert_table", { convert_table: })
+    def post_update_ns_convert_table(network, snapshot, convert_table)
+      response = post("/topologies/#{network}/#{snapshot}/ns_convert_table", { convert_table: })
       fetch_response(response)
     end
 
