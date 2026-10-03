@@ -332,6 +332,60 @@ docker run --rm model-conductor bundle list | grep rspec  # 何も出力され�
 
 GitHub Actions では lint + test の両ジョブが green になると build_and_push が自動実行される。
 
+## 現状（2026-10-03 時点）
+
+### 実装済み
+
+| スペックファイル | 対象クラス | Tier |
+|---|---|---|
+| `spec/nw_subsets/network_subset_spec.rb` | `NetworkSubset` | 1 |
+| `spec/nw_subsets/network_set_spec.rb` | `NetworkSet` | 1 |
+| `spec/topology_ops/name_converter_spec.rb` | `NameConverter` | 1 |
+| `spec/generate_conduit_topology/blueprint_network_spec.rb` | `BlueprintNetwork` | 1 |
+| `spec/generate_conduit_topology/router_node_attr_merger_spec.rb` | `RouterNodeAttrMerger` | 1 |
+| `spec/generate_conduit_topology/layer3_conduit_builder_spec.rb` | `Layer3ConduitBuilder` | 1 |
+| `spec/policy_manipulation/bgp_policy_patcher_spec.rb` | `BgpPolicyPatcher` | 1 |
+
+計 **49 examples, 0 failures**。
+
+### 残課題
+
+#### 未作成スペック
+
+**Tier 1（HTTP 依存なし — すぐに追加可能）**
+
+| スペックファイル | 対象クラス | 備考 |
+|---|---|---|
+| `spec/reach_test/reach_result_converter_spec.rb` | `ReachResultConverter` | |
+| `spec/policy_manipulation/firewall_policy_patcher_spec.rb` | `FirewallPolicyPatcher` | |
+| `spec/generate_conduit_topology/conduit_topology_generator_spec.rb` | `ConduitTopologyGenerator` | |
+| `spec/splice_topology/topology_splicer_spec.rb` | `TopologySplicer` | bgp_as/bgp_proc/layer3 複合 fixture が必要 |
+
+**Tier 2（Netomox オブジェクト経由）**
+
+| スペックファイル | 対象クラス | 備考 |
+|---|---|---|
+| `spec/nw_subsets/network_sets_spec.rb` | `NetworkSets` | fixture JSON → `DisconnectedVerifiableNetworks` 経由 |
+| `spec/topology_ops/topology_ops_commander_spec.rb` | `TopologyOpsCommander` | |
+| `spec/topology_ops/link_ops_commander_spec.rb` | `LinkOpsCommander` | |
+| `spec/topology_ops/shut_ops_commander_spec.rb` | `ShutOpsCommander` | |
+
+**Tier 3（`rest_api` モック必要）**
+
+| スペックファイル | 対象クラス | モックポイント |
+|---|---|---|
+| `spec/nw_subsets/network_sets_diff_spec.rb` | `NetworkSetsDiff` | `fetch_topology_data` x2 |
+| `spec/reach_test/reach_pattern_handler_spec.rb` | `ReachPatternHandler` | `fetch_networks` 等 + `exit 1` 対策 |
+
+#### 不足フィクスチャ
+
+- `TopologySplicer` 用: `bgp_as`・`bgp_proc`・`layer3` 層を含む複合 topology JSON
+- `TopologyOpsCommander` 系: link/shut 操作を持つ topology JSON（既存の `minimal_layer3_topology.json` で一部対応可）
+
+#### CI 動作確認
+
+push 後に GitHub Actions で `lint` → `test` → `build_and_push` が順に green になることを確認する。
+
 ## 成果物一覧
 
 | ファイル | 種別 |
