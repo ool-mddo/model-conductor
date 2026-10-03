@@ -32,7 +32,7 @@ group :development do
 end
 
 group :test do
-  gem 'rspec', '~> 3.13'
   gem 'rack-test', '~> 2.1'
+  gem 'rspec', '~> 3.13'
   gem 'webmock', '~> 3.23'
 end
