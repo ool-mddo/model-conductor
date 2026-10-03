@@ -1,0 +1,23 @@
+{
+  "ietf-network:networks": {
+    "network": [
+      {
+        "network-id": "zoom0",
+        "node": [
+          {
+            "node-id": "conduit_r1",
+            "supports": [
+              { "network-ref": "layer3", "node-ref": "router1" }
+            ]
+          },
+          {
+            "node-id": "conduit_r2",
+            "supports": [
+              { "network-ref": "layer3", "node-ref": "router2" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

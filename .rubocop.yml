@@ -5,3 +5,7 @@ AllCops:
   NewCops: enable
   TargetRubyVersion: 3.4
 
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+

@@ -5,36 +5,59 @@ env:
   IMAGE_NAME: model-conductor
 
 jobs:
-  # lint:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: checkout
-  #       uses: actions/checkout@v3
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Set up Ruby
-  #       uses: ruby/setup-ruby@v1
-  #       with:
-  #         ruby-version: '3.1'
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: false
 
-  #     - name: Set up Bundler with GitHub Packages
-  #       env:
-  #         BUNDLE_RUBYGEMS__PKG__GITHUB__COM: "${{ secrets.GITHUB_TOKEN }}"
-  #       run: |
-  #         bundle config set --local BUNDLE_RUBYGEMS__PKG__GITHUB__COM $BUNDLE_RUBYGEMS__PKG__GITHUB__COM
-  #         bundle install
+      - name: Install gems (without test)
+        env:
+          BUNDLE_RUBYGEMS__PKG__GITHUB__COM: "${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          bundle config set --local without 'test'
+          bundle install
 
-  #     - name: Run RuboCop
-  #       run: bundle exec rake rubocop
+      - name: Run RuboCop
+        run: bundle exec rake rubocop
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: false
+
+      - name: Install gems (without development)
+        env:
+          BUNDLE_RUBYGEMS__PKG__GITHUB__COM: "${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          bundle config set --local without 'development'
+          bundle install
+
+      - name: Run RSpec
+        run: bundle exec rspec
 
   build_and_push:
-    # needs: lint
+    needs: [lint, test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
-      - name: checkout
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
