@@ -20,6 +20,7 @@ bundle install
 | サーバー起動 | `bundle exec rackup -s webrick -o 0.0.0.0 -p 9292` |
 | 開発（自動リロード） | `rerun bundle exec rackup -s webrick -o 0.0.0.0 -p 9292` |
 | コンテナ内（ボリューム） | `rerun --force-polling bundle exec rackup -s webrick -o 0.0.0.0 -p 9292` |
+| **テスト実行** | `bundle exec rspec` |
 | Lint | `bundle exec rake rubocop` |
 | Lint 自動修正 | `bundle exec rake rubocop:auto_correct` |
 | ドキュメント生成 | `bundle exec rake yard` |
@@ -152,4 +153,18 @@ Ruby 3.4 から `csv` がデフォルト gem から外れた（`ostruct` は Rub
 
 ## Testing
 
-**テストファイルは存在しない。** 変更後は実際の API を叩いて手動確認が必要。
+RSpec を使用する。テスト関連 gem は `group :test`（Gemfile）で管理し、Docker イメージには含まれない。
+
+```sh
+bundle exec rspec                              # 全テスト
+bundle exec rspec spec/nw_subsets/            # ディレクトリ指定
+bundle exec rspec -e "node_groups"            # テスト名で絞り込み
+```
+
+テスト戦略・クラス分類（Tier 1〜3）・モッキング方針の詳細は [`docs/testing.md`](docs/testing.md) を参照。
+
+### テストを追加する際の注意点
+
+- **Tier 1**（HTTP 依存なし）: `spec/fixtures/*.json` のフィクスチャを渡すだけでテスト可能。新しい純粋変換クラスはここに追加する。
+- **Tier 3**（`ModelConductor.rest_api` が必要）: `include_context 'with mocked rest_api'` を使い `instance_double(ModelConductor::MddoRestApiClient)` で差し替える。
+- `raise_error` マッチャーは必ず型を指定する（例: `raise_error(StandardError, /message/)`）。型なしだと `NoMethodError` 等で偽陽性になる。

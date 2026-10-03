@@ -314,6 +314,23 @@ Generate conduit topologies from original_asis and blueprint topology.
 
 ## Development
 
+### Run tests
+
+model-conductor uses [RSpec](https://rspec.info/) for unit testing.
+
+```shell
+# Run all tests
+bundle exec rspec
+
+# Run a specific directory
+bundle exec rspec spec/nw_subsets/
+
+# Run tests matching a description
+bundle exec rspec -e "node_groups"
+```
+
+See [docs/testing.md](docs/testing.md) for the test strategy and how to add new tests.
+
 ### Optional: Build model-conductor container
 
 model-conductor uses [netomox](https://github.com/ool-mddo/netomox) gem that pushed on github packages.

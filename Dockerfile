@@ -9,6 +9,7 @@ RUN --mount=type=secret,id=ghp_credential \
     && apt-get install -y --no-install-recommends build-essential \
     && gem install bundler \
     && export BUNDLE_RUBYGEMS__PKG__GITHUB__COM=$(cat /run/secrets/ghp_credential) \
+    && bundle config set --local without 'test' \
     && bundle install \
     && unset BUNDLE_RUBYGEMS__PKG__GITHUB__COM \
     && apt-get purge -y --auto-remove build-essential \

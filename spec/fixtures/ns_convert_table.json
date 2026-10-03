@@ -1,0 +1,15 @@
+{
+  "node_name_table": {
+    "router1": { "l3_model": "router1", "l1_principal": "router1-pe" },
+    "router2": { "l3_model": "router2", "l1_principal": "router2-pe" }
+  },
+  "tp_name_table": {
+    "router1": {
+      "eth0": { "l3_model": "eth0", "l1_principal": "ge-0/0/0" },
+      "eth1": { "l3_model": "eth1", "l1_principal": "ge-0/0/1" }
+    },
+    "router2": {
+      "eth0": { "l3_model": "eth0", "l1_principal": "ge-0/0/0" }
+    }
+  }
+}
