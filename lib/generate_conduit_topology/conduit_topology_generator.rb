@@ -50,15 +50,22 @@ module ModelConductor
 
     def build_conduit_ospf_networks(node_mapping, tp_mapping)
       ospf_networks = original_networks.select { |nw| nw['network-id'].match?(OSPF_AREA_PATTERN) }
-      ospf_networks.map { |orig_ospf| OspfConduitBuilder.new(orig_ospf, node_mapping, tp_mapping).build }
+      router_ids = original_router_ids(ospf_networks)
+      ospf_networks.map { |orig_ospf| OspfConduitBuilder.new(orig_ospf, node_mapping, tp_mapping, router_ids).build }
     end
 
-    # Order: ospfX (X>0) descending, then ospf0, then layer3 (upper layers first)
-    def sort_ospf_networks(conduit_ospf_networks)
-      conduit_ospf_networks.sort_by do |nw|
-        area_num = nw['network-id'][/\d+/].to_i
-        area_num.zero? ? Float::INFINITY : -area_num
+    # @return [Hash] { original_node_name => ospf router-id } (ospf_proc nodes in all ospf areas)
+    def original_router_ids(ospf_networks)
+      ospf_networks.flat_map { |nw| nw['node'] || [] }.each_with_object({}) do |node, ids|
+        router_id = node.dig('mddo-topology:ospf-area-node-attributes', 'router-id')
+        ids[node['node-id']] ||= router_id unless router_id.nil? || router_id.empty?
       end
+    end
+
+    # Order: ospf area ascending (ospf0, ospf10, ...) then layer3, same as the original topology.
+    # NOTE: playbook templates may depend on the first ospf area (backbone) listing all routers.
+    def sort_ospf_networks(conduit_ospf_networks)
+      conduit_ospf_networks.sort_by { |nw| nw['network-id'][/\d+/].to_i }
     end
   end
 end

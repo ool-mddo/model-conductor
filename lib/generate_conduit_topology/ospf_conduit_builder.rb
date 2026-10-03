@@ -13,16 +13,19 @@ module ModelConductor
     LINK_KEY = 'ietf-network-topology:link'
     SUPPORTING_TP_KEY = 'supporting-termination-point'
     SUPPORTING_NODE_KEY = 'supporting-node'
+    OSPF_NW_ATTR = 'mddo-topology:ospf-area-network-attributes'
     OSPF_NODE_ATTR = 'mddo-topology:ospf-area-node-attributes'
     OSPF_TP_ATTR = 'mddo-topology:ospf-area-termination-point-attributes'
 
     # @param original_ospf [Hash] one ospf_area network data from original topology
     # @param node_mapping [Hash] { original_node_name => conduit_node_name }
     # @param tp_mapping [Hash] { [original_node_name, original_tp_name] => [conduit_node_name, conduit_tp_name] }
-    def initialize(original_ospf, node_mapping, tp_mapping)
+    # @param router_ids [Hash] { original_node_name => ospf router-id } over all ospf areas
+    def initialize(original_ospf, node_mapping, tp_mapping, router_ids = {})
       @original_ospf = original_ospf
       @node_mapping = node_mapping
       @tp_mapping = tp_mapping
+      @router_ids = router_ids
       @orig_nodes = original_ospf['node'] || []
       @orig_links = original_ospf[LINK_KEY] || []
     end
@@ -34,15 +37,20 @@ module ModelConductor
       conduit_seg_nodes = build_conduit_segment_nodes(seg_info)
       conduit_links = build_conduit_links(seg_info)
 
-      {
-        'network-id' => @original_ospf['network-id'],
-        'network-types' => @original_ospf['network-types'],
-        'node' => conduit_nodes + conduit_seg_nodes,
-        LINK_KEY => conduit_links
-      }.compact
+      network_header.merge('node' => conduit_nodes + conduit_seg_nodes, LINK_KEY => conduit_links).compact
     end
 
     private
+
+    # network-level data (type, supporting network, attributes) inherited from the original ospf network
+    def network_header
+      {
+        'network-id' => @original_ospf['network-id'],
+        'network-types' => @original_ospf['network-types'],
+        'supporting-network' => @original_ospf['supporting-network']&.map(&:dup),
+        OSPF_NW_ATTR => @original_ospf[OSPF_NW_ATTR]&.dup
+      }
+    end
 
     # Group original non-segment nodes by conduit name, build one conduit node per group
     def build_conduit_non_segment_nodes
@@ -69,10 +77,44 @@ module ModelConductor
         'node-id' => conduit_name,
         TP_KEY => conduit_tps,
         SUPPORTING_NODE_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => conduit_name }],
-        OSPF_NODE_ATTR => (representative[OSPF_NODE_ATTR] || {}).dup
+        OSPF_NODE_ATTR => build_conduit_node_attr(representative, conduit_name)
       }
       node['flag'] = representative['flag'].dup if representative['flag']
       node
+    end
+
+    # A conduit node has one router-id in every area: the one of the group's representative original node.
+    def build_conduit_node_attr(representative, conduit_name)
+      attr = (representative[OSPF_NODE_ATTR] || {}).dup
+      router_id = conduit_router_id(conduit_name)
+      attr['router-id'] = router_id if router_id
+      attr
+    end
+
+    # @return [String, nil] router-id of the first (representative) original node of the conduit node
+    def conduit_router_id(conduit_name)
+      orig_name, = @node_mapping.find { |orig, conduit| conduit == conduit_name && @router_ids.key?(orig) }
+      orig_name && @router_ids[orig_name]
+    end
+
+    # @return [Hash] { original router-id => conduit router-id }
+    def router_id_translation
+      @router_id_translation ||= @node_mapping.each_with_object({}) do |(orig_name, conduit_name), table|
+        orig_rid = @router_ids[orig_name]
+        conduit_rid = conduit_router_id(conduit_name)
+        table[orig_rid] = conduit_rid if orig_rid && conduit_rid
+      end
+    end
+
+    # Follow router-id of merged nodes in neighbor entries
+    def convert_tp_attr(tp_attr)
+      attr = (tp_attr || {}).dup
+      return attr unless attr['neighbor']
+
+      attr['neighbor'] = attr['neighbor'].map do |nbr|
+        nbr.merge('router-id' => router_id_translation.fetch(nbr['router-id'], nbr['router-id']))
+      end
+      attr
     end
 
     def build_conduit_non_seg_tps(orig_node, conduit_name)
@@ -84,7 +126,7 @@ module ModelConductor
         {
           'tp-id' => conduit_tp,
           SUPPORTING_TP_KEY => [{ 'network-ref' => 'layer3', 'node-ref' => conduit_name, 'tp-ref' => conduit_tp }],
-          OSPF_TP_ATTR => (tp[OSPF_TP_ATTR] || {}).dup
+          OSPF_TP_ATTR => convert_tp_attr(tp[OSPF_TP_ATTR])
         }
       end
     end

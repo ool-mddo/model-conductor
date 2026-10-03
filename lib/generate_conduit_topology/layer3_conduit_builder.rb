@@ -16,6 +16,7 @@ module ModelConductor
   class Layer3ConduitBuilder # rubocop:disable Metrics/ClassLength
     TP_KEY = 'ietf-network-topology:termination-point'
     LINK_KEY = 'ietf-network-topology:link'
+    L3_NW_ATTR = 'mddo-topology:l3-network-attributes'
     L3_NODE_ATTR = 'mddo-topology:l3-node-attributes'
     L3_TP_ATTR = 'mddo-topology:l3-termination-point-attributes'
 
@@ -54,6 +55,7 @@ module ModelConductor
       {
         'network-id' => 'layer3',
         'network-types' => @original_layer3['network-types'],
+        L3_NW_ATTR => @original_layer3[L3_NW_ATTR]&.dup,
         'node' => conduit_nodes + conduit_seg_nodes,
         LINK_KEY => conduit_links
       }.compact
