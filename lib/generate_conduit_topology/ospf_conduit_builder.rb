@@ -62,8 +62,9 @@ module ModelConductor
         name = orig_node['node-id']
         next if segment_name?(name)
 
+        # nodes not defined in the blueprint are omitted
         conduit_name = @node_mapping[name]
-        raise "OSPF node '#{name}' not found in node_mapping" if conduit_name.nil?
+        next if conduit_name.nil?
 
         groups[conduit_name] ||= []
         groups[conduit_name] << orig_node

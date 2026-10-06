@@ -101,15 +101,14 @@ module ModelConductor
       end
     end
 
-    # Determine which segments cross group boundaries
+    # Determine which segments cross group boundaries.
+    # Endpoints of nodes not defined in the blueprint are omitted.
     # @return [Hash] { seg_name => [{node_name:, tp_name:, seg_tp:, conduit_name:}] }
     def find_external_segments(seg_endpoints, node_to_group)
       seg_endpoints.each_with_object({}) do |(seg_name, endpoints), external|
-        eps = endpoints.map do |ep|
+        eps = endpoints.filter_map do |ep|
           conduit_name = node_to_group[ep[:node_name]]
-          raise "Node '#{ep[:node_name]}' not found in any blueprint group" if conduit_name.nil?
-
-          ep.merge(conduit_name:)
+          ep.merge(conduit_name:) unless conduit_name.nil?
         end
         external[seg_name] = eps if eps.map { |e| e[:conduit_name] }.uniq.size > 1
       end

@@ -53,4 +53,47 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder do
       expect(tp_mapping.values.map(&:first)).to include('conduit_r1', 'conduit_r2')
     end
   end
+
+  describe '#build with nodes not defined in the blueprint' do
+    # router3 is not in the blueprint: add it to a 3-party segment (Seg_10.0.0.0/30) and a 2-party segment
+    let(:layer3_with_extra) do
+      nw = Marshal.load(Marshal.dump(original_layer3))
+      tp_key = 'ietf-network-topology:termination-point'
+      link_key = 'ietf-network-topology:link'
+      nw['node'] << { 'node-id' => 'router3', tp_key => [{ 'tp-id' => 'eth0' }, { 'tp-id' => 'eth1' }] }
+      nw['node'].find { |n| n['node-id'] == 'Seg_10.0.0.0/30' }[tp_key] << { 'tp-id' => 'router3_eth0' }
+      nw['node'] << { 'node-id' => 'Seg_10.9.9.0/30',
+                      tp_key => [{ 'tp-id' => 'router1_eth1' }, { 'tp-id' => 'router3_eth1' }] }
+      nw[link_key] += [
+        ['Seg_10.0.0.0/30', 'router3_eth0', 'router3', 'eth0'],
+        ['Seg_10.9.9.0/30', 'router1_eth1', 'router1', 'eth1'],
+        ['Seg_10.9.9.0/30', 'router3_eth1', 'router3', 'eth1']
+      ].map do |sn, stp, dn, dtp|
+        { 'link-id' => "#{sn},#{stp},#{dn},#{dtp}",
+          'source' => { 'source-node' => sn, 'source-tp' => stp },
+          'destination' => { 'dest-node' => dn, 'dest-tp' => dtp } }
+      end
+      nw
+    end
+    let(:result) { described_class.new(layer3_with_extra, blueprint_nw).build }
+    let(:node_ids) { result[0]['node'].map { |n| n['node-id'] } }
+
+    it 'does not raise' do
+      expect { result }.not_to raise_error
+    end
+
+    it 'omits nodes not defined in the blueprint' do
+      expect(node_ids).not_to include('router3')
+      expect(result[1]).not_to have_key('router3')
+    end
+
+    it 'keeps a segment shared by blueprint nodes without the undefined endpoint' do
+      seg = result[0]['node'].find { |n| n['node-id'] == 'Seg_10.0.0.0/30' }
+      expect(seg['ietf-network-topology:termination-point'].size).to eq(2)
+    end
+
+    it 'omits a segment that has only one blueprint node endpoint' do
+      expect(node_ids).not_to include('Seg_10.9.9.0/30')
+    end
+  end
 end
