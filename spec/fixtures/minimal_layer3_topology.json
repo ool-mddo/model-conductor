@@ -1,0 +1,85 @@
+{
+  "ietf-network:networks": {
+    "network": [
+      {
+        "network-id": "layer3",
+        "network-types": { "mddo-topology:l3-network-types": {} },
+        "node": [
+          {
+            "node-id": "router1",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "node",
+              "prefix": [{ "prefix": "10.0.0.0/30" }, { "prefix": "192.168.1.0/24" }],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "eth0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": ["10.0.0.1/30"],
+                  "flag": []
+                }
+              }
+            ]
+          },
+          {
+            "node-id": "router2",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "node",
+              "prefix": [{ "prefix": "192.168.2.0/24" }],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "eth0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": ["10.0.0.2/30"],
+                  "flag": []
+                }
+              }
+            ]
+          },
+          {
+            "node-id": "Seg_10.0.0.0/30",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "segment",
+              "prefix": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              { "tp-id": "router1_eth0", "mddo-topology:l3-termination-point-attributes": { "flag": [] } },
+              { "tp-id": "router2_eth0", "mddo-topology:l3-termination-point-attributes": { "flag": [] } }
+            ]
+          }
+        ],
+        "ietf-network-topology:link": [
+          {
+            "link-id": "router1,eth0,Seg_10.0.0.0/30,router1_eth0",
+            "source": { "source-node": "router1", "source-tp": "eth0" },
+            "destination": { "dest-node": "Seg_10.0.0.0/30", "dest-tp": "router1_eth0" }
+          },
+          {
+            "link-id": "Seg_10.0.0.0/30,router1_eth0,router1,eth0",
+            "source": { "source-node": "Seg_10.0.0.0/30", "source-tp": "router1_eth0" },
+            "destination": { "dest-node": "router1", "dest-tp": "eth0" }
+          },
+          {
+            "link-id": "router2,eth0,Seg_10.0.0.0/30,router2_eth0",
+            "source": { "source-node": "router2", "source-tp": "eth0" },
+            "destination": { "dest-node": "Seg_10.0.0.0/30", "dest-tp": "router2_eth0" }
+          },
+          {
+            "link-id": "Seg_10.0.0.0/30,router2_eth0,router2,eth0",
+            "source": { "source-node": "Seg_10.0.0.0/30", "source-tp": "router2_eth0" },
+            "destination": { "dest-node": "router2", "dest-tp": "eth0" }
+          }
+        ]
+      }
+    ]
+  }
+}

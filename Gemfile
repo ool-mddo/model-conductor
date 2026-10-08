@@ -30,3 +30,9 @@ group :development do
   gem 'rubocop-rake', require: false
   gem 'yard', '>= 0.9.20'
 end
+
+group :test do
+  gem 'rack-test', '~> 2.1'
+  gem 'rspec', '~> 3.13'
+  gem 'webmock', '~> 3.23'
+end
