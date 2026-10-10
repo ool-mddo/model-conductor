@@ -133,6 +133,7 @@ TP 名に `_` を含むノード名がある場合は曖昧性が生じる可能
 **`ns_convert.rb` での使用:**
 - `exist_ns_convert_table!(network, src_ss)` — src snapshot のテーブル存在チェック
 - `post_init_ns_convert_table(network, origin_ss, usecase)` — origin snapshot からテーブル生成・保存
+- `fetch_ns_convert_table` + `post_update_ns_convert_table(network, dst_ss, table)` — 変換後に同一テーブルを dst snapshot にも保存 (元テーブルは `table_origin` があればそれ、なければ `src_ss`)
 
 ### json 3.x では symbolize_names をキーワード引数で渡す
 

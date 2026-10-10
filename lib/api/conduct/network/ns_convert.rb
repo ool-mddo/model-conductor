@@ -38,6 +38,8 @@ module ModelConductor
         # check source snapshot existence
         exist_snapshot!(network, src_ss, 'Source snapshot')
 
+        # snapshot that holds the (latest) convert table
+        table_ss = src_ss
         if params.key?(:table_origin)
           # check source snapshot existence
           exist_snapshot!(network, origin_ss, 'Table origin snapshot')
@@ -45,6 +47,7 @@ module ModelConductor
           # force update (initialize) convert table when table_origin snapshot is specified
           logger.info "Initialize ns convert table of network:#{network} with snapshot:#{origin_ss}"
           rest_api.post_init_ns_convert_table(network, origin_ss, params[:usecase])
+          table_ss = origin_ss
         else
           # check namespace convert table existence
           exist_ns_convert_table!(network, src_ss)
@@ -52,6 +55,12 @@ module ModelConductor
 
         converted_topology_data = rest_api.fetch_converted_topology_data(network, src_ss)
         rest_api.post_topology_data(network, dst_ss, converted_topology_data)
+
+        # save the same convert table to destination snapshot (original/emulated pair)
+        logger.info "Copy ns convert table of network:#{network} from snapshot:#{table_ss} to snapshot:#{dst_ss}"
+        ns_convert_table = rest_api.fetch_ns_convert_table(network, table_ss)
+        rest_api.post_update_ns_convert_table(network, dst_ss, ns_convert_table)
+
         # response
         {}
       end
