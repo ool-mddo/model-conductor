@@ -49,6 +49,11 @@ bundle install
 
 新しいバックエンド API を追加する際は `NETOMOX_EXP_URL_RESOURCE` 定数の更新要否を確認すること。
 
+### conduit の layer3 TP 属性は新規構築される
+
+`Layer3ConduitBuilder#build_router_conduit_tp` は Router グループの conduit TP の属性を `ip-address` / `flag` (と必要なら `fhrp`) で
+**新規に作る** (元 TP の属性を引き継がない)。layer3 TP に新しい属性を追加した場合は、ここ (Firewall グループは丸ごと `dup` されるので不要) を更新しないと conduit で落ちる。
+
 ### netomox gem のオープンクラスパッチが 3 か所ある
 
 以下のファイルで `Netomox::Topology::*` クラスを reopen して機能追加している。gem バージョンアップ時は非互換を確認すること。
@@ -82,12 +87,23 @@ conduit topology 生成時の FW ノード識別は top-level `"flag": ["firewal
 
 - `blueprint_network.rb` — BlueprintNetwork クラス。blueprint の node supports を layer3 ノード名まで再帰的に解決。NodeGroup struct を定義。
 - `layer3_conduit_builder.rb` — Layer3ConduitBuilder クラス。conduit layer3 ネットワーク・node_mapping・tp_mapping を生成。
+- `fhrp_gateway_resolver.rb` — FhrpGatewayResolver クラス。`fhrp` (VRRP/HSRP) を持つ TP の扱い (冗長を維持できるかの判定、代表 TP の選択、VIP への変換) を担う。
 - `ospf_conduit_builder.rb` — OspfConduitBuilder クラス。node_mapping/tp_mapping を使って各 ospf_area conduit を生成。
 - `conduit_topology_generator.rb` — ConduitTopologyGenerator クラス。blueprint ネットワーク 1 つあたり 1 つの conduit topology を生成するオーケストレーター。
 
 **土管化ルール:**
 - Firewall ノード (top-level `flag` に `"firewall"` を含む): 全ての元ノードを個別に保持。TP 名・属性はそのまま
 - Router ノード (blueprint でグループ化): 代表ノード 1 つに集約。外部接続 TP のみ eth1, eth2, ... に rename
+  - 例外: `fhrp` (VRRP/HSRP) を持つ **unlinked TP (セグメントに接続していない TP = エッジ)** は、外部 TP の連番に続けて `ethN+1...` として残す
+    (目的: エッジセグメントのエンドポイントのデフォルトゲートウェイを変えない)。`FhrpGatewayResolver` が次のように決める:
+    - 冗長を維持できる (同じ FHRP グループ `(protocol, group-id, virtual-address)` のメンバーが、blueprint に含まれるノードの範囲で
+      2 つ以上の異なる conduit ノードにいる): `ip-address` と `fhrp` を元 TP のまま引き継ぐ
+    - 冗長を維持できない (1 つの conduit ノードに畳まれた / パートナーが blueprint に無い): `fhrp` は付けず、`ip-address` を
+      **virtual-address + source-address のプレフィックス長** (例 `192.168.100.1/24`) にする
+    - 1 conduit ノード・1 FHRP グループにつき TP は 1 つ。代表は Master/Active に選ばれるメンバー
+      (priority 最大、同値なら source-address の数値が最大。VRRP/HSRP 共通。VRRP の 255 が最優先、0 が最後、同値ならメンバー順)
+    - 外部 TP (他グループとのセグメントに接続) が `fhrp` を持つ場合は IP を変えず、冗長を維持できるときだけ `fhrp` を引き継ぐ
+  - `fhrp` を持たない unlinked TP は従来どおり残らない。現行の blueprint (cr ノードを含まない) の出力は変わらない
 - Segment ノード: グループ間をまたぐ(外部)セグメントのみ自動生成。同一グループ内の内部セグメントは除外
 - ospf_area: layer3 の node_mapping/tp_mapping を共有して同様の変換を適用
 
