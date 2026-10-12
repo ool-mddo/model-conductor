@@ -2,6 +2,7 @@
 
 require_relative 'router_node_attr_merger'
 require_relative 'fhrp_gateway_resolver'
+require_relative 'tp_description_resolver'
 
 module ModelConductor
   # Builds a conduit layer3 topology network from the original layer3 and a blueprint network.
@@ -17,6 +18,7 @@ module ModelConductor
   #     as one TP for each fhrp group (see FhrpGatewayResolver):
   #       redundancy is maintained -> keep fhrp, redundancy is not maintained -> virtual address as ip address
   #   - Segment nodes: auto-generated from external (cross-group) segments only
+  #   - TP description ("to_<facing node>_<facing tp>") is regenerated from the conduit links (TpDescriptionResolver)
   class Layer3ConduitBuilder # rubocop:disable Metrics/ClassLength
     TP_KEY = 'ietf-network-topology:termination-point'
     LINK_KEY = 'ietf-network-topology:link'
@@ -41,6 +43,8 @@ module ModelConductor
       @fhrp_resolver = build_fhrp_resolver(classified, node_mapping, external_segs)
       tp_mapping = build_tp_mapping(classified, external_segs)
       conduit_layer3 = assemble_conduit_layer3(classified, external_segs, tp_mapping)
+      # description depends on the final link structure
+      TpDescriptionResolver.new(conduit_layer3['node'], conduit_layer3[LINK_KEY]).apply!
       [conduit_layer3, node_mapping, tp_mapping]
     end
 
