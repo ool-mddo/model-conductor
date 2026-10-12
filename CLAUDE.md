@@ -130,6 +130,8 @@ TP 名に `_` を含むノード名がある場合は曖昧性が生じる可能
 3. original topology を netomox-exp から取得（`upper_layer3: false`）
 4. `ConduitTopologyGenerator` で conduit topology を生成
 5. 各 conduit を `{snapshot}_conduit1`, `{snapshot}_conduit2`, ... として保存
+   (各 topology の `ietf-network:networks` 直下に `mddo-topology:networks-attributes` の `flag: ["blueprint=<blueprint_snapshot>"]` を付ける。
+   スキーマ: [docs/networks_attributes.md](../../docs/networks_attributes.md))
 
 レスポンス: `[{snapshot: "original_asis_conduit1"}, ...]`
 

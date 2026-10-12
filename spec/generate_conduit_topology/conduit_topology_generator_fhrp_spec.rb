@@ -15,6 +15,23 @@ RSpec.describe ModelConductor::ConduitTopologyGenerator, 'with fhrp (VRRP/HSRP)'
   let(:networks) { Netomox::Topology::Networks.new(result.first[:topology]) }
   let(:conduit_tp) { networks.find_network('layer3').find_node_by_name(conduit_name).find_tp_by_name('eth2') }
 
+  describe 'blueprint flag of the networks container' do
+    let(:groups) { separate_groups }
+    let(:attr_key) { 'mddo-topology:networks-attributes' }
+
+    it 'records the blueprint snapshot name in the flag (parsed by netomox)' do
+      result = described_class.new(original_topology, blueprint_topology, 'original_asis_blueprint1').generate
+      expect(result.first[:topology].dig('ietf-network:networks', attr_key, 'flag'))
+        .to eq %w[blueprint=original_asis_blueprint1]
+      nws = Netomox::Topology::Networks.new(result.first[:topology])
+      expect(nws.attribute.flags).to eq %w[blueprint=original_asis_blueprint1]
+    end
+
+    it 'does not add the attribute if the blueprint snapshot name is not given' do
+      expect(result.first[:topology]['ietf-network:networks']).not_to have_key(attr_key)
+    end
+  end
+
   context 'with redundancy maintained' do
     let(:groups) { separate_groups }
     let(:conduit_name) { 'c_cr1' }

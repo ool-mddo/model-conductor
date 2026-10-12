@@ -30,7 +30,7 @@ module ModelConductor
           error!('original topology not found', 404) if original_topology.nil?
 
           # Generate conduit topologies
-          generator = ConduitTopologyGenerator.new(original_topology, blueprint_topology)
+          generator = ConduitTopologyGenerator.new(original_topology, blueprint_topology, blueprint_snapshot)
           conduit_list = generator.generate
 
           # Save each conduit topology and return snapshot list
