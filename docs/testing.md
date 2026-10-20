@@ -66,7 +66,7 @@ expect { described_class.new(bad_pattern_def) }.to raise_error(SystemExit)
 
 ### 今回のスコープ外
 
-- Grape API ルート層（`lib/api/conduct/`）— rack-test でテスト可能だが初期フェーズでは後回し
+- Grape API ルート層（`lib/api/conduct/`）— rack-test でテスト可能。`spec/api/ns_convert_spec.rb`（`ns_convert` が dst snapshot にも変換テーブルを保存すること）のみ実装済み、他は後回し
 - `MddoRestApiClient` 自体 — WebMock で `HTTPClient` をスタブすれば可能だが、コストが高いため後回し
 
 ---
