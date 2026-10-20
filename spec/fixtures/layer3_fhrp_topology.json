@@ -1,0 +1,443 @@
+{
+  "ietf-network:networks": {
+    "network": [
+      {
+        "network-id": "layer3",
+        "network-types": {
+          "mddo-topology:l3-network-types": {}
+        },
+        "node": [
+          {
+            "node-id": "cr1",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "node",
+              "prefix": [
+                {
+                  "prefix": "10.0.0.0/30"
+                },
+                {
+                  "prefix": "192.168.100.0/24"
+                },
+                {
+                  "prefix": "10.9.9.0/24"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "ge-0/0/0.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.0.0.1/30"
+                  ],
+                  "flag": []
+                }
+              },
+              {
+                "tp-id": "ge-0/0/2.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "192.168.100.2/24"
+                  ],
+                  "flag": [],
+                  "fhrp": [
+                    {
+                      "protocol": "vrrp",
+                      "group-id": 1,
+                      "virtual-address": [
+                        "192.168.100.1"
+                      ],
+                      "priority": 150,
+                      "preempt": true,
+                      "source-address": "192.168.100.2/24",
+                      "active": true
+                    }
+                  ]
+                }
+              },
+              {
+                "tp-id": "ge-0/0/9.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.9.9.1/24"
+                  ],
+                  "flag": []
+                }
+              }
+            ]
+          },
+          {
+            "node-id": "cr2",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "node",
+              "prefix": [
+                {
+                  "prefix": "10.0.1.0/30"
+                },
+                {
+                  "prefix": "192.168.100.0/24"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "ge-0/0/0.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.0.1.1/30"
+                  ],
+                  "flag": []
+                }
+              },
+              {
+                "tp-id": "ge-0/0/2.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "192.168.100.3/24"
+                  ],
+                  "flag": [],
+                  "fhrp": [
+                    {
+                      "protocol": "vrrp",
+                      "group-id": 1,
+                      "virtual-address": [
+                        "192.168.100.1"
+                      ],
+                      "priority": 100,
+                      "preempt": true,
+                      "source-address": "192.168.100.3/24",
+                      "active": true
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "node-id": "cr3",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "node",
+              "prefix": [
+                {
+                  "prefix": "10.0.2.0/30"
+                },
+                {
+                  "prefix": "192.168.100.0/24"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "ge-0/0/0.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.0.2.1/30"
+                  ],
+                  "flag": []
+                }
+              },
+              {
+                "tp-id": "ge-0/0/2.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "192.168.100.4/24"
+                  ],
+                  "flag": [],
+                  "fhrp": [
+                    {
+                      "protocol": "vrrp",
+                      "group-id": 1,
+                      "virtual-address": [
+                        "192.168.100.1"
+                      ],
+                      "priority": 100,
+                      "preempt": true,
+                      "source-address": "192.168.100.4/24",
+                      "active": true
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "node-id": "fw1",
+            "flag": [
+              "firewall"
+            ],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "node",
+              "prefix": [
+                {
+                  "prefix": "172.16.0.0/24"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "ge-0/0/1.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.0.0.2/30"
+                  ],
+                  "flag": []
+                }
+              },
+              {
+                "tp-id": "ge-0/0/2.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.0.1.2/30"
+                  ],
+                  "flag": []
+                }
+              },
+              {
+                "tp-id": "ge-0/0/3.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "10.0.2.2/30"
+                  ],
+                  "flag": []
+                }
+              },
+              {
+                "tp-id": "ge-0/0/4.0",
+                "mddo-topology:l3-termination-point-attributes": {
+                  "ip-address": [
+                    "172.16.0.2/24"
+                  ],
+                  "flag": [],
+                  "fhrp": [
+                    {
+                      "protocol": "vrrp",
+                      "group-id": 5,
+                      "virtual-address": [
+                        "172.16.0.1"
+                      ],
+                      "priority": 120,
+                      "preempt": true,
+                      "source-address": "172.16.0.2/24",
+                      "active": true
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "node-id": "Seg_10.0.0.0/30",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "segment",
+              "prefix": [
+                {
+                  "prefix": "10.0.0.0/30"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "cr1_ge-0/0/0.0"
+              },
+              {
+                "tp-id": "fw1_ge-0/0/1.0"
+              }
+            ]
+          },
+          {
+            "node-id": "Seg_10.0.1.0/30",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "segment",
+              "prefix": [
+                {
+                  "prefix": "10.0.1.0/30"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "cr2_ge-0/0/0.0"
+              },
+              {
+                "tp-id": "fw1_ge-0/0/2.0"
+              }
+            ]
+          },
+          {
+            "node-id": "Seg_10.0.2.0/30",
+            "flag": [],
+            "mddo-topology:l3-node-attributes": {
+              "node-type": "segment",
+              "prefix": [
+                {
+                  "prefix": "10.0.2.0/30"
+                }
+              ],
+              "static-route": [],
+              "flag": []
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "cr3_ge-0/0/0.0"
+              },
+              {
+                "tp-id": "fw1_ge-0/0/3.0"
+              }
+            ]
+          }
+        ],
+        "ietf-network-topology:link": [
+          {
+            "link-id": "Seg_10.0.0.0/30,cr1_ge-0/0/0.0,cr1,ge-0/0/0.0",
+            "source": {
+              "source-node": "Seg_10.0.0.0/30",
+              "source-tp": "cr1_ge-0/0/0.0"
+            },
+            "destination": {
+              "dest-node": "cr1",
+              "dest-tp": "ge-0/0/0.0"
+            }
+          },
+          {
+            "link-id": "cr1,ge-0/0/0.0,Seg_10.0.0.0/30,cr1_ge-0/0/0.0",
+            "source": {
+              "source-node": "cr1",
+              "source-tp": "ge-0/0/0.0"
+            },
+            "destination": {
+              "dest-node": "Seg_10.0.0.0/30",
+              "dest-tp": "cr1_ge-0/0/0.0"
+            }
+          },
+          {
+            "link-id": "Seg_10.0.0.0/30,fw1_ge-0/0/1.0,fw1,ge-0/0/1.0",
+            "source": {
+              "source-node": "Seg_10.0.0.0/30",
+              "source-tp": "fw1_ge-0/0/1.0"
+            },
+            "destination": {
+              "dest-node": "fw1",
+              "dest-tp": "ge-0/0/1.0"
+            }
+          },
+          {
+            "link-id": "fw1,ge-0/0/1.0,Seg_10.0.0.0/30,fw1_ge-0/0/1.0",
+            "source": {
+              "source-node": "fw1",
+              "source-tp": "ge-0/0/1.0"
+            },
+            "destination": {
+              "dest-node": "Seg_10.0.0.0/30",
+              "dest-tp": "fw1_ge-0/0/1.0"
+            }
+          },
+          {
+            "link-id": "Seg_10.0.1.0/30,cr2_ge-0/0/0.0,cr2,ge-0/0/0.0",
+            "source": {
+              "source-node": "Seg_10.0.1.0/30",
+              "source-tp": "cr2_ge-0/0/0.0"
+            },
+            "destination": {
+              "dest-node": "cr2",
+              "dest-tp": "ge-0/0/0.0"
+            }
+          },
+          {
+            "link-id": "cr2,ge-0/0/0.0,Seg_10.0.1.0/30,cr2_ge-0/0/0.0",
+            "source": {
+              "source-node": "cr2",
+              "source-tp": "ge-0/0/0.0"
+            },
+            "destination": {
+              "dest-node": "Seg_10.0.1.0/30",
+              "dest-tp": "cr2_ge-0/0/0.0"
+            }
+          },
+          {
+            "link-id": "Seg_10.0.1.0/30,fw1_ge-0/0/2.0,fw1,ge-0/0/2.0",
+            "source": {
+              "source-node": "Seg_10.0.1.0/30",
+              "source-tp": "fw1_ge-0/0/2.0"
+            },
+            "destination": {
+              "dest-node": "fw1",
+              "dest-tp": "ge-0/0/2.0"
+            }
+          },
+          {
+            "link-id": "fw1,ge-0/0/2.0,Seg_10.0.1.0/30,fw1_ge-0/0/2.0",
+            "source": {
+              "source-node": "fw1",
+              "source-tp": "ge-0/0/2.0"
+            },
+            "destination": {
+              "dest-node": "Seg_10.0.1.0/30",
+              "dest-tp": "fw1_ge-0/0/2.0"
+            }
+          },
+          {
+            "link-id": "Seg_10.0.2.0/30,cr3_ge-0/0/0.0,cr3,ge-0/0/0.0",
+            "source": {
+              "source-node": "Seg_10.0.2.0/30",
+              "source-tp": "cr3_ge-0/0/0.0"
+            },
+            "destination": {
+              "dest-node": "cr3",
+              "dest-tp": "ge-0/0/0.0"
+            }
+          },
+          {
+            "link-id": "cr3,ge-0/0/0.0,Seg_10.0.2.0/30,cr3_ge-0/0/0.0",
+            "source": {
+              "source-node": "cr3",
+              "source-tp": "ge-0/0/0.0"
+            },
+            "destination": {
+              "dest-node": "Seg_10.0.2.0/30",
+              "dest-tp": "cr3_ge-0/0/0.0"
+            }
+          },
+          {
+            "link-id": "Seg_10.0.2.0/30,fw1_ge-0/0/3.0,fw1,ge-0/0/3.0",
+            "source": {
+              "source-node": "Seg_10.0.2.0/30",
+              "source-tp": "fw1_ge-0/0/3.0"
+            },
+            "destination": {
+              "dest-node": "fw1",
+              "dest-tp": "ge-0/0/3.0"
+            }
+          },
+          {
+            "link-id": "fw1,ge-0/0/3.0,Seg_10.0.2.0/30,fw1_ge-0/0/3.0",
+            "source": {
+              "source-node": "fw1",
+              "source-tp": "ge-0/0/3.0"
+            },
+            "destination": {
+              "dest-node": "Seg_10.0.2.0/30",
+              "dest-tp": "fw1_ge-0/0/3.0"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

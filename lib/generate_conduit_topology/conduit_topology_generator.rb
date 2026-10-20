@@ -10,12 +10,16 @@ module ModelConductor
   # conduit layer3 and conduit ospf_area networks derived from the original topology.
   class ConduitTopologyGenerator
     OSPF_AREA_PATTERN = /\Aospf_area/
+    # attribute key of the networks container (mddo augmentation), it keeps the source blueprint of the conduit topology
+    NETWORKS_ATTR_KEY = 'mddo-topology:networks-attributes'
 
     # @param original_topology [Hash] original topology data (RFC8345 JSON, not symbolized)
     # @param blueprint_topology [Hash] blueprint topology data (not symbolized)
-    def initialize(original_topology, blueprint_topology)
+    # @param blueprint_snapshot [String, nil] blueprint snapshot name (recorded in networks flag if given)
+    def initialize(original_topology, blueprint_topology, blueprint_snapshot = nil)
       @original_topology = original_topology
       @blueprint_topology = blueprint_topology
+      @blueprint_snapshot = blueprint_snapshot
     end
 
     # @return [Array<Hash>] list of {index: Integer, topology: Hash}
@@ -45,7 +49,9 @@ module ModelConductor
       conduit_layer3, node_mapping, tp_mapping = Layer3ConduitBuilder.new(orig_layer3, blueprint_nw).build
       conduit_ospf_networks = build_conduit_ospf_networks(node_mapping, tp_mapping)
       sorted_ospf = sort_ospf_networks(conduit_ospf_networks)
-      { 'ietf-network:networks' => { 'network' => sorted_ospf + [conduit_layer3] } }
+      nws_data = { 'network' => sorted_ospf + [conduit_layer3] }
+      nws_data[NETWORKS_ATTR_KEY] = { 'flag' => ["blueprint=#{@blueprint_snapshot}"] } if @blueprint_snapshot
+      { 'ietf-network:networks' => nws_data }
     end
 
     def build_conduit_ospf_networks(node_mapping, tp_mapping)

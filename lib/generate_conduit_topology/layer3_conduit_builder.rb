@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative 'router_node_attr_merger'
+require_relative 'fhrp_gateway_resolver'
+require_relative 'tp_description_resolver'
 
 module ModelConductor
   # Builds a conduit layer3 topology network from the original layer3 and a blueprint network.
@@ -12,7 +14,11 @@ module ModelConductor
   # Rules:
   #   - Firewall nodes (flag contains "firewall"): all original nodes preserved, TPs unchanged
   #   - Router nodes: collapsed to one representative node; external TPs renamed eth1, eth2, ...
+  #     TPs with fhrp (VRRP/HSRP) and not connected to external segments (edge TPs) are kept after the external TPs,
+  #     as one TP for each fhrp group (see FhrpGatewayResolver):
+  #       redundancy is maintained -> keep fhrp, redundancy is not maintained -> virtual address as ip address
   #   - Segment nodes: auto-generated from external (cross-group) segments only
+  #   - TP description ("to_<facing node>_<facing tp>") is regenerated from the conduit links (TpDescriptionResolver)
   class Layer3ConduitBuilder # rubocop:disable Metrics/ClassLength
     TP_KEY = 'ietf-network-topology:termination-point'
     LINK_KEY = 'ietf-network-topology:link'
@@ -34,12 +40,21 @@ module ModelConductor
       classified = classify_node_groups
       node_mapping = build_node_mapping(classified)
       external_segs = build_external_segments(node_mapping)
+      @fhrp_resolver = build_fhrp_resolver(classified, node_mapping, external_segs)
       tp_mapping = build_tp_mapping(classified, external_segs)
       conduit_layer3 = assemble_conduit_layer3(classified, external_segs, tp_mapping)
+      # description depends on the final link structure
+      TpDescriptionResolver.new(conduit_layer3['node'], conduit_layer3[LINK_KEY]).apply!
       [conduit_layer3, node_mapping, tp_mapping]
     end
 
     private
+
+    def build_fhrp_resolver(classified, node_mapping, external_segs)
+      router_groups = classified.select { |cg| cg[:type] == :router }.map { |cg| cg[:group] }
+      external_tps = external_segs.values.flatten.to_set { |ep| [ep[:node_name], ep[:tp_name]] }
+      FhrpGatewayResolver.new(@orig_nodes, node_mapping, router_groups, external_tps)
+    end
 
     def build_external_segments(node_mapping)
       node_to_group = node_mapping.reject { |k, _| segment_name?(k) }
@@ -157,6 +172,15 @@ module ModelConductor
       ordered_members.each do |member_name|
         assign_external_tp_mappings(member_name, conduit_name, external_segs, tp_mapping, eth_counters)
       end
+      assign_fhrp_edge_tp_mappings(conduit_name, tp_mapping, eth_counters)
+    end
+
+    # edge TPs which have fhrp are numbered after the external TPs
+    def assign_fhrp_edge_tp_mappings(conduit_name, tp_mapping, eth_counters)
+      @fhrp_resolver.edge_tps(conduit_name).each do |edge_tp|
+        eth_counters[conduit_name] += 1
+        tp_mapping[[edge_tp.node_name, edge_tp.tp_name]] = [conduit_name, "eth#{eth_counters[conduit_name]}"]
+      end
     end
 
     def assign_external_tp_mappings(member_name, conduit_name, external_segs, tp_mapping, eth_counters)
@@ -196,7 +220,7 @@ module ModelConductor
       conduit_name = group.conduit_name
       conduit_tp_entries = tp_entries_for_conduit(tp_mapping, conduit_name)
       conduit_tps = conduit_tp_entries.map do |(orig_node_name, orig_tp_name), (_cn, c_tp)|
-        build_router_conduit_tp(orig_node_name, orig_tp_name, c_tp)
+        build_router_conduit_tp(conduit_name, orig_node_name, orig_tp_name, c_tp)
       end
       {
         'node-id' => conduit_name,
@@ -211,11 +235,24 @@ module ModelConductor
         .sort_by { |_k, (_cn, ct)| ct[/\d+/].to_i }
     end
 
-    def build_router_conduit_tp(orig_node_name, orig_tp_name, c_tp)
+    def build_router_conduit_tp(conduit_name, orig_node_name, orig_tp_name, c_tp)
+      edge_tp = @fhrp_resolver.find_edge_tp(conduit_name, orig_node_name, orig_tp_name)
+      if edge_tp
+        # edge tp with fhrp: ip address and fhrp are resolved by fhrp redundancy
+        return build_conduit_tp(c_tp, edge_tp.ip_addrs, edge_tp.fhrp)
+      end
+
       orig_node = find_orig_node(orig_node_name)
       orig_tp = (orig_node&.dig(TP_KEY) || []).find { |t| t['tp-id'] == orig_tp_name }
       ip_addrs = orig_tp&.dig(L3_TP_ATTR, 'ip-address') || []
-      { 'tp-id' => c_tp, L3_TP_ATTR => { 'ip-address' => ip_addrs, 'flag' => [] } }
+      build_conduit_tp(c_tp, ip_addrs, @fhrp_resolver.maintained_fhrp(orig_node_name, orig_tp_name))
+    end
+
+    # fhrp is added only if the term-point has it
+    def build_conduit_tp(tp_name, ip_addrs, fhrp)
+      attribute = { 'ip-address' => ip_addrs, 'flag' => [] }
+      attribute['fhrp'] = fhrp unless fhrp.empty?
+      { 'tp-id' => tp_name, L3_TP_ATTR => attribute }
     end
 
     def merge_router_attrs(original_node_names, tp_mapping, conduit_name)

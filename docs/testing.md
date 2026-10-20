@@ -63,6 +63,7 @@ expect { described_class.new(bad_pattern_def) }.to raise_error(SystemExit)
 | `spec/fixtures/minimal_layer3_topology.json` | router1・router2・Seg ノード + リンク（layer3 ネットワーク 1 つ） | conduit, splice, subset, ops 系全般 |
 | `spec/fixtures/blueprint_topology.json` | zoom0 ネットワーク + conduit_r1/conduit_r2 ノード | BlueprintNetwork, Layer3ConduitBuilder |
 | `spec/fixtures/ns_convert_table.json` | node_name_table / tp_name_table の最小変換テーブル | NameConverter |
+| `spec/fixtures/layer3_fhrp_topology.json` | cr1・cr2・cr3 (VRRP ペア。LAN 側の unlinked TP に `fhrp`)・fw1 (Firewall。`fhrp` 付き TP)・Seg ノード + リンク | FHRP 関連 spec (下記)。blueprint はケースごとに spec 内で組み立てる (`spec/support/fhrp_conduit_helpers.rb`) |
 
 ### 今回のスコープ外
 
@@ -347,6 +348,19 @@ GitHub Actions では lint + test の両ジョブが green になると build_an
 | `spec/policy_manipulation/bgp_policy_patcher_spec.rb` | `BgpPolicyPatcher` | 1 |
 
 計 **49 examples, 0 failures**。
+
+### FHRP (VRRP/HSRP) 関連 spec (conduit topology)
+
+conduit topology での layer3 TP の `fhrp` (netomox 0.14.0 以降が必要) の扱いを検証する。
+ローカル実行 (netomox の公開前) は `RUBYLIB=<netomox>/lib bundle exec rspec`。追加後の合計は **102 examples, 0 failures**。
+
+| スペックファイル | 対象クラス | 要点 |
+|---|---|---|
+| `spec/generate_conduit_topology/fhrp_gateway_resolver_spec.rb` | `FhrpGatewayResolver` | 冗長を維持できるか (異なる conduit ノード / 畳んだ / パートナーが blueprint に無い / Firewall)、代表 TP の選び方 (priority → source-address の数値比較 → メンバー順。VRRP の 255 / 0)、VIP への変換、外部 TP の `fhrp` |
+| `spec/generate_conduit_topology/layer3_conduit_builder_fhrp_spec.rb` | `Layer3ConduitBuilder` | Router の edge TP (unlinked + `fhrp`) の保持・集約・tp_mapping・連番、外部 TP の `fhrp`、Firewall グループ、従来出力との同一性、deep copy |
+| `spec/generate_conduit_topology/router_node_attr_merger_fhrp_spec.rb` | `RouterNodeAttrMerger` | edge TP の connected prefix が conduit ノードの prefix に残る |
+| `spec/generate_conduit_topology/ospf_conduit_builder_fhrp_spec.rb` | `OspfConduitBuilder` | tp_mapping に edge TP が増えても ospf_area conduit の出力が変わらない |
+| `spec/generate_conduit_topology/conduit_topology_generator_fhrp_spec.rb` | `ConduitTopologyGenerator` | 出力が `Netomox::Topology::Networks` でパースでき `MddoFhrp` が取れる |
 
 ### 残課題
 
