@@ -87,7 +87,7 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder do
     it 'sets segment term-point description' do
       seg = conduit_layer3['node'].find { |n| n['node-id'] == 'Seg_10.0.0.0/30' }
       descs = seg[tp_key].map { |tp| tp.dig(attr_key, 'description') }
-      expect(descs).to contain_exactly('to_conduit_r1_eth1', 'to_conduit_r2_eth1')
+      expect(descs).to contain_exactly('to_conduit_r1_eth0', 'to_conduit_r2_eth0')
     end
   end
 
@@ -153,14 +153,14 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder do
     end
 
     it 'points the router and firewall term-points at the facing node (not the segment)' do
-      expect(description_of('c_r1', 'eth1')).to eq('to_fw1_ge-0/0/1.0')
-      expect(description_of('fw1', 'ge-0/0/1.0')).to eq('to_c_r1_eth1')
+      expect(description_of('c_r1', 'eth0')).to eq('to_fw1_ge-0/0/1.0')
+      expect(description_of('fw1', 'ge-0/0/1.0')).to eq('to_c_r1_eth0')
     end
 
     it 'makes the descriptions of the cluster pair the same (including term-points without link)' do
       expect(description_of('fw2', 'ge-0/0/1.0')).to eq(description_of('fw1', 'ge-0/0/1.0'))
       expect(description_of('fw1', 'ge-7/0/1.0')).to eq(description_of('fw2', 'ge-7/0/1.0'))
-      expect(description_of('fw1', 'ge-7/0/1.0')).to eq('to_c_r1_eth2')
+      expect(description_of('fw1', 'ge-7/0/1.0')).to eq('to_c_r1_eth1')
     end
 
     it 'removes stale descriptions of term-points that lost their facing node' do

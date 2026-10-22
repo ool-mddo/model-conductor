@@ -13,6 +13,11 @@ module ModelConductor
   #       in the blueprint): drop the `fhrp` config, and use the virtual address as the term-point address.
   # Members that are not in the blueprint (not in node_mapping) are ignored.
   #
+  # Redundant term-points on an external segment: when the members of a fhrp group are in the same conduit node and
+  #   connected to the same external segment (e.g. gateways of endpoints), they are collapsed to one term-point
+  #   (the representative, same rule as edge term-points) and the others are removed from the segment.
+  #   The address and fhrp of the representative are resolved in the same way as edge term-points.
+  #
   # Edge term-point = a term-point of a router group member that has `fhrp` and is not connected to external
   # segment. The edge term-points are collapsed to one term-point per conduit node and fhrp group.
   # The representative is the member that becomes Master/Active:
@@ -52,6 +57,29 @@ module ModelConductor
       @members = collect_members
       @redundant_keys = redundant_group_keys
       @edge_tps = resolve_edge_tps
+      @collapsed_tps = {}
+    end
+
+    # Collapse redundant fhrp term-points of a conduit node on the same external segment into the representative.
+    # @param external_segs [Hash] { seg_name => [{node_name:, tp_name:, seg_tp:, conduit_name:}] }
+    # @return [Hash] external_segs without the endpoints of the removed term-points
+    def collapse_external_endpoints(external_segs)
+      representatives = []
+      collapsed_segs = external_segs.transform_values do |endpoints|
+        removed = collapsed_conduit_groups(endpoints).flat_map do |conduit_endpoints|
+          collapse_conduit_endpoints(conduit_endpoints, representatives)
+        end
+        endpoints.reject { |ep| removed.include?(ep) }
+      end
+      @collapsed_tps = resolve_collapsed_tps(representatives)
+      collapsed_segs
+    end
+
+    # @param node_name [String] original node name
+    # @param tp_name [String] original term-point name
+    # @return [EdgeTermPoint, nil] resolved term-point if it is the representative of collapsed external term-points
+    def find_collapsed_tp(node_name, tp_name)
+      @collapsed_tps[[node_name, tp_name]]
     end
 
     # @param conduit_name [String] conduit (router group) node name
@@ -90,6 +118,46 @@ module ModelConductor
     def original_fhrp(node_name, tp_name)
       tp = original_tps(node_name).find { |t| t['tp-id'] == tp_name }
       tp&.dig(L3_TP_ATTR, 'fhrp') || []
+    end
+
+    # @return [Array<Array<Hash>>] endpoints of each router conduit node (two or more original nodes) on a segment
+    def collapsed_conduit_groups(endpoints)
+      router_conduit_names = @router_groups.map(&:conduit_name)
+      endpoints.group_by { |ep| ep[:conduit_name] }
+               .select { |name, eps| router_conduit_names.include?(name) && eps.uniq { |ep| ep[:node_name] }.size > 1 }
+               .values
+    end
+
+    # @param endpoints [Array<Hash>] endpoints of a conduit node on a segment
+    # @param representatives [Array<Member>] (output) representative members of the collapsed fhrp groups
+    # @return [Array<Hash>] endpoints to be removed
+    def collapse_conduit_endpoints(endpoints, representatives)
+      redundant_member_groups(endpoints).flat_map do |group|
+        representative = group.min_by { |member| representative_key(member) }
+        representatives << representative
+        removed = group.reject { |member| same_tp?(member, representative) }
+        removed.filter_map { |member| find_endpoint(endpoints, member) }
+      end.uniq
+    end
+
+    # @return [Array<Array<Member>>] fhrp groups (members of the endpoints) that have two or more original nodes
+    def redundant_member_groups(endpoints)
+      members = @members.select { |member| find_endpoint(endpoints, member) }
+      members.group_by(&:group_key).values.select { |group| group.map(&:node_name).uniq.size > 1 }
+    end
+
+    def find_endpoint(endpoints, member)
+      endpoints.find { |ep| ep[:node_name] == member.node_name && ep[:tp_name] == member.tp_name }
+    end
+
+    def same_tp?(member, other)
+      member.node_name == other.node_name && member.tp_name == other.tp_name
+    end
+
+    # @return [Hash] { [original_node_name, original_tp_name] => EdgeTermPoint }
+    def resolve_collapsed_tps(representatives)
+      representatives.group_by { |member| [member.node_name, member.tp_name] }
+                     .to_h { |key, members| [key, build_edge_tp(*key, members)] }
     end
 
     # member order in the router group (representative node is the first)

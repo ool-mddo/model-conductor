@@ -9,8 +9,8 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with fhrp (VRRP/HSRP)' do
 
   context 'when redundancy is maintained (cr1, cr2, cr3 are in different conduit nodes)' do
     it 'keeps the edge tp with fhrp and ip address in each conduit node (after external tps)' do
-      expect(conduit_tp_names(conduit_layer3, 'c_cr1')).to eq %w[eth1 eth2]
-      tp = find_tp(conduit_layer3, 'c_cr1', 'eth2')
+      expect(conduit_tp_names(conduit_layer3, 'c_cr1')).to eq %w[ge-0/0/0.0 ge-0/0/2.0]
+      tp = find_tp(conduit_layer3, 'c_cr1', 'ge-0/0/2.0')
       expect(tp[l3_attr]['ip-address']).to eq %w[192.168.100.2/24]
       expect(tp[l3_attr]['fhrp']).to eq [
         {
@@ -21,13 +21,13 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with fhrp (VRRP/HSRP)' do
     end
 
     it 'keeps the priority of each member' do
-      expect(fhrp_of(conduit_layer3, 'c_cr2', 'eth2')['priority']).to eq 100
-      expect(fhrp_of(conduit_layer3, 'c_cr3', 'eth2')['priority']).to eq 100
+      expect(fhrp_of(conduit_layer3, 'c_cr2', 'ge-0/0/2.0')['priority']).to eq 100
+      expect(fhrp_of(conduit_layer3, 'c_cr3', 'ge-0/0/2.0')['priority']).to eq 100
     end
 
     it 'adds the edge tp to tp_mapping' do
-      expect(tp_mapping[%w[cr1 ge-0/0/2.0]]).to eq %w[c_cr1 eth2]
-      expect(tp_mapping[%w[cr2 ge-0/0/2.0]]).to eq %w[c_cr2 eth2]
+      expect(tp_mapping[%w[cr1 ge-0/0/2.0]]).to eq %w[c_cr1 ge-0/0/2.0]
+      expect(tp_mapping[%w[cr2 ge-0/0/2.0]]).to eq %w[c_cr2 ge-0/0/2.0]
     end
 
     it 'does not keep the edge tp without fhrp (as before)' do
@@ -41,17 +41,17 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with fhrp (VRRP/HSRP)' do
                                                                                 Seg_10.0.0.0/30 Seg_10.0.1.0/30
                                                                                 Seg_10.0.2.0/30]
       link_tps = conduit_layer3['ietf-network-topology:link'].flat_map do |l|
-        [l['source']['source-tp'], l['destination']['dest-tp']]
+        [l['source'].values, l['destination'].values]
       end
-      expect(link_tps).not_to include('eth2', 'c_cr1_eth2')
+      expect(link_tps).not_to include(%w[c_cr1 ge-0/0/2.0], %w[Seg_10.0.0.0/30 c_cr1_ge-0/0/2.0])
     end
 
     it 'does not add fhrp key to tps without fhrp' do
-      expect(find_tp(conduit_layer3, 'c_cr1', 'eth1')[l3_attr]).not_to have_key('fhrp')
+      expect(find_tp(conduit_layer3, 'c_cr1', 'ge-0/0/0.0')[l3_attr]).not_to have_key('fhrp')
     end
 
     it 'copies fhrp (changing the conduit does not affect the original topology)' do
-      fhrp_of(conduit_layer3, 'c_cr1', 'eth2')['priority'] = 1
+      fhrp_of(conduit_layer3, 'c_cr1', 'ge-0/0/2.0')['priority'] = 1
       expect(fhrp_of(layer3, 'cr1', 'ge-0/0/2.0')['priority']).to eq 150
     end
   end
@@ -77,7 +77,7 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with fhrp (VRRP/HSRP)' do
     let(:groups) { { 'c_cr1' => ['cr1'], 'fw1' => ['fw1'] } }
 
     it 'uses the virtual address as ip address (redundancy is not maintained)' do
-      tp = find_tp(conduit_layer3, 'c_cr1', 'eth2')
+      tp = find_tp(conduit_layer3, 'c_cr1', 'ge-0/0/2.0')
       expect(tp[l3_attr]['ip-address']).to eq %w[192.168.100.1/24]
       expect(tp[l3_attr]).not_to have_key('fhrp')
     end
@@ -91,7 +91,7 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with fhrp (VRRP/HSRP)' do
       expect(edge_tps.length).to eq 1
       expect(edge_tps.first[l3_attr]['ip-address']).to eq %w[192.168.100.2/24]
       expect(edge_tps.first[l3_attr]['fhrp'].first['priority']).to eq 150
-      expect(fhrp_of(conduit_layer3, 'c_cr3', 'eth2')).not_to be_nil
+      expect(fhrp_of(conduit_layer3, 'c_cr3', 'ge-0/0/2.0')).not_to be_nil
     end
   end
 
@@ -108,7 +108,7 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with fhrp (VRRP/HSRP)' do
 
     context 'with the group members in different conduit nodes' do
       it 'keeps fhrp (and the own ip address)' do
-        tp = find_tp(conduit_layer3, 'c_cr1', 'eth1')
+        tp = find_tp(conduit_layer3, 'c_cr1', 'ge-0/0/0.0')
         expect(tp[l3_attr]['ip-address']).to eq %w[10.0.0.1/30]
         expect(tp[l3_attr]['fhrp'].first).to include('protocol' => 'hsrp', 'group-id' => 7, 'priority' => 90)
       end
