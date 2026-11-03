@@ -14,6 +14,7 @@ module ModelConductor
   # Rules:
   #   - Firewall nodes (flag contains "firewall"): all original nodes preserved, TPs unchanged
   #   - Router nodes: collapsed to one representative node; external TPs renamed eth1, eth2, ...
+  #     (a group of a single original node (e.g. endpoint) is not collapsed: its TPs keep the original names)
   #     TPs with fhrp (VRRP/HSRP) and not connected to external segments (edge TPs) are kept after the external TPs,
   #     as one TP for each fhrp group (see FhrpGatewayResolver):
   #       redundancy is maintained -> keep fhrp, redundancy is not maintained -> virtual address as ip address
@@ -41,6 +42,7 @@ module ModelConductor
       node_mapping = build_node_mapping(classified)
       external_segs = build_external_segments(node_mapping)
       @fhrp_resolver = build_fhrp_resolver(classified, node_mapping, external_segs)
+      external_segs = @fhrp_resolver.collapse_external_endpoints(external_segs)
       tp_mapping = build_tp_mapping(classified, external_segs)
       conduit_layer3 = assemble_conduit_layer3(classified, external_segs, tp_mapping)
       # description depends on the final link structure
@@ -144,6 +146,7 @@ module ModelConductor
     # Build tp_mapping: [original_node, original_tp] => [conduit_node, conduit_tp]
     # FW TPs: identity mapping for all TPs
     # Router TPs: only external TPs, renamed eth1, eth2, ... (representative node's TPs first)
+    #   (TPs of a group of a single original node keep the original names, there is no name conflict)
     def build_tp_mapping(classified, external_segs)
       tp_mapping = {}
       eth_counters = Hash.new(0)
@@ -166,32 +169,41 @@ module ModelConductor
     end
 
     def build_router_tp_mapping(group, external_segs, tp_mapping, eth_counters)
-      conduit_name = group.conduit_name
       representative = group.original_node_names.first
       ordered_members = [representative] + (group.original_node_names - [representative])
       ordered_members.each do |member_name|
-        assign_external_tp_mappings(member_name, conduit_name, external_segs, tp_mapping, eth_counters)
+        assign_external_tp_mappings(member_name, group, external_segs, tp_mapping, eth_counters)
       end
-      assign_fhrp_edge_tp_mappings(conduit_name, tp_mapping, eth_counters)
+      assign_fhrp_edge_tp_mappings(group, tp_mapping, eth_counters)
     end
 
     # edge TPs which have fhrp are numbered after the external TPs
-    def assign_fhrp_edge_tp_mappings(conduit_name, tp_mapping, eth_counters)
-      @fhrp_resolver.edge_tps(conduit_name).each do |edge_tp|
-        eth_counters[conduit_name] += 1
-        tp_mapping[[edge_tp.node_name, edge_tp.tp_name]] = [conduit_name, "eth#{eth_counters[conduit_name]}"]
+    def assign_fhrp_edge_tp_mappings(group, tp_mapping, eth_counters)
+      @fhrp_resolver.edge_tps(group.conduit_name).each do |edge_tp|
+        tp_mapping[[edge_tp.node_name, edge_tp.tp_name]] =
+          [group.conduit_name, conduit_tp_name(group, edge_tp.tp_name, eth_counters)]
       end
     end
 
-    def assign_external_tp_mappings(member_name, conduit_name, external_segs, tp_mapping, eth_counters)
+    def assign_external_tp_mappings(member_name, group, external_segs, tp_mapping, eth_counters)
       external_segs.each_value do |endpoints|
         endpoints.each do |ep|
           next unless ep[:node_name] == member_name
 
-          eth_counters[conduit_name] += 1
-          tp_mapping[[member_name, ep[:tp_name]]] = [conduit_name, "eth#{eth_counters[conduit_name]}"]
+          tp_mapping[[member_name, ep[:tp_name]]] =
+            [group.conduit_name, conduit_tp_name(group, ep[:tp_name], eth_counters)]
         end
       end
+    end
+
+    # A group of a single original node is not collapsed (no name conflict): keep the original tp name.
+    # @return [String] original tp name or next "ethN" of the conduit node
+    def conduit_tp_name(group, original_tp_name, eth_counters)
+      conduit_name = group.conduit_name
+      return original_tp_name if group.original_node_names.size == 1
+
+      eth_counters[conduit_name] += 1
+      "eth#{eth_counters[conduit_name]}"
     end
 
     def build_conduit_nodes(classified, tp_mapping)
@@ -232,13 +244,15 @@ module ModelConductor
     def tp_entries_for_conduit(tp_mapping, conduit_name)
       tp_mapping
         .select { |(_on, _ot), (cn, _ct)| cn == conduit_name }
-        .sort_by { |_k, (_cn, ct)| ct[/\d+/].to_i }
+        .each_with_index
+        .sort_by { |(_k, (_cn, ct)), idx| [ct[/\d+/].to_i, idx] }
+        .map(&:first)
     end
 
     def build_router_conduit_tp(conduit_name, orig_node_name, orig_tp_name, c_tp)
-      edge_tp = @fhrp_resolver.find_edge_tp(conduit_name, orig_node_name, orig_tp_name)
+      edge_tp = find_resolved_fhrp_tp(conduit_name, orig_node_name, orig_tp_name)
       if edge_tp
-        # edge tp with fhrp: ip address and fhrp are resolved by fhrp redundancy
+        # edge tp (or collapsed tp on external segment) with fhrp: ip address and fhrp are resolved by fhrp redundancy
         return build_conduit_tp(c_tp, edge_tp.ip_addrs, edge_tp.fhrp)
       end
 
@@ -246,6 +260,12 @@ module ModelConductor
       orig_tp = (orig_node&.dig(TP_KEY) || []).find { |t| t['tp-id'] == orig_tp_name }
       ip_addrs = orig_tp&.dig(L3_TP_ATTR, 'ip-address') || []
       build_conduit_tp(c_tp, ip_addrs, @fhrp_resolver.maintained_fhrp(orig_node_name, orig_tp_name))
+    end
+
+    # @return [FhrpGatewayResolver::EdgeTermPoint, nil] edge tp or collapsed tp on external segment
+    def find_resolved_fhrp_tp(conduit_name, orig_node_name, orig_tp_name)
+      @fhrp_resolver.find_edge_tp(conduit_name, orig_node_name, orig_tp_name) ||
+        @fhrp_resolver.find_collapsed_tp(orig_node_name, orig_tp_name)
     end
 
     # fhrp is added only if the term-point has it

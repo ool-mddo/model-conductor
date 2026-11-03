@@ -100,6 +100,7 @@ conduit topology 生成時の FW ノード識別は top-level `"flag": ["firewal
 **土管化ルール:**
 - Firewall ノード (top-level `flag` に `"firewall"` を含む): 全ての元ノードを個別に保持。TP 名・属性はそのまま
 - Router ノード (blueprint でグループ化): 代表ノード 1 つに集約。外部接続 TP のみ eth1, eth2, ... に rename
+  - 例外: 元ノード 1 つだけのグループ (endpoint (host) など) は集約しないので、TP 名を rename せず元の名前のまま保持
   - 例外: `fhrp` (VRRP/HSRP) を持つ **unlinked TP (セグメントに接続していない TP = エッジ)** は、外部 TP の連番に続けて `ethN+1...` として残す
     (目的: エッジセグメントのエンドポイントのデフォルトゲートウェイを変えない)。`FhrpGatewayResolver` が次のように決める:
     - 冗長を維持できる (同じ FHRP グループ `(protocol, group-id, virtual-address)` のメンバーが、blueprint に含まれるノードの範囲で
@@ -109,7 +110,11 @@ conduit topology 生成時の FW ノード識別は top-level `"flag": ["firewal
     - 1 conduit ノード・1 FHRP グループにつき TP は 1 つ。代表は Master/Active に選ばれるメンバー
       (priority 最大、同値なら source-address の数値が最大。VRRP/HSRP 共通。VRRP の 255 が最優先、0 が最後、同値ならメンバー順)
     - 外部 TP (他グループとのセグメントに接続) が `fhrp` を持つ場合は IP を変えず、冗長を維持できるときだけ `fhrp` を引き継ぐ
-  - `fhrp` を持たない unlinked TP は従来どおり残らない。現行の blueprint (cr ノードを含まない) の出力は変わらない
+  - 外部セグメント上の冗長 gateway: 同じ FHRP グループのメンバーが同じ conduit ノードに集約され、同じ外部セグメントに繋がる場合
+    (endpoint (host) を blueprint に含めた host 向けセグメントなど) は、`FhrpGatewayResolver#collapse_external_endpoints` が
+    セグメント上の TP を代表 1 TP に畳み、他のメンバーの TP をセグメント・tp_mapping から除く。代表 TP の `ip-address` / `fhrp` は
+    edge TP と同じ規則で決める (`find_collapsed_tp`)
+  - `fhrp` を持たない unlinked TP は従来どおり残らない
 - Segment ノード: グループ間をまたぐ(外部)セグメントのみ自動生成。同一グループ内の内部セグメントは除外
 - ospf_area: layer3 の node_mapping/tp_mapping を共有して同様の変換を適用
 

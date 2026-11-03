@@ -357,7 +357,8 @@ conduit topology での layer3 TP の `fhrp` (netomox 0.14.0 以降が必要) �
 | スペックファイル | 対象クラス | 要点 |
 |---|---|---|
 | `spec/generate_conduit_topology/fhrp_gateway_resolver_spec.rb` | `FhrpGatewayResolver` | 冗長を維持できるか (異なる conduit ノード / 畳んだ / パートナーが blueprint に無い / Firewall)、代表 TP の選び方 (priority → source-address の数値比較 → メンバー順。VRRP の 255 / 0)、VIP への変換、外部 TP の `fhrp` |
-| `spec/generate_conduit_topology/layer3_conduit_builder_fhrp_spec.rb` | `Layer3ConduitBuilder` | Router の edge TP (unlinked + `fhrp`) の保持・集約・tp_mapping・連番、外部 TP の `fhrp`、Firewall グループ、従来出力との同一性、deep copy |
+| `spec/generate_conduit_topology/layer3_conduit_builder_fhrp_spec.rb` | `Layer3ConduitBuilder` | Router の edge TP (unlinked + `fhrp`) の保持・集約・tp_mapping・連番 (元ノード 1 つだけのグループは元の TP 名)、外部 TP の `fhrp`、Firewall グループ、従来出力との同一性、deep copy |
+| `spec/generate_conduit_topology/layer3_conduit_builder_endpoint_spec.rb` | `Layer3ConduitBuilder` | endpoint (host) 向け外部セグメント上の冗長 gateway TP の畳み込み (代表 1 TP、冗長を維持できないときは virtual-address・fhrp なし、維持できるときは `fhrp` 引き継ぎ)、元ノード 1 つだけのグループ (host) の TP 名維持、description |
 | `spec/generate_conduit_topology/router_node_attr_merger_fhrp_spec.rb` | `RouterNodeAttrMerger` | edge TP の connected prefix が conduit ノードの prefix に残る |
 | `spec/generate_conduit_topology/ospf_conduit_builder_fhrp_spec.rb` | `OspfConduitBuilder` | tp_mapping に edge TP が増えても ospf_area conduit の出力が変わらない |
 | `spec/generate_conduit_topology/conduit_topology_generator_fhrp_spec.rb` | `ConduitTopologyGenerator` | 出力が `Netomox::Topology::Networks` でパースでき `MddoFhrp` が取れる |

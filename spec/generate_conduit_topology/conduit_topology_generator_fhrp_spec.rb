@@ -13,7 +13,7 @@ RSpec.describe ModelConductor::ConduitTopologyGenerator, 'with fhrp (VRRP/HSRP)'
   end
   let(:result) { described_class.new(original_topology, blueprint_topology).generate }
   let(:networks) { Netomox::Topology::Networks.new(result.first[:topology]) }
-  let(:conduit_tp) { networks.find_network('layer3').find_node_by_name(conduit_name).find_tp_by_name('eth2') }
+  let(:conduit_tp) { networks.find_network('layer3').find_node_by_name(conduit_name).find_tp_by_name(conduit_tp_name) }
 
   describe 'blueprint flag of the networks container' do
     let(:groups) { separate_groups }
@@ -35,6 +35,7 @@ RSpec.describe ModelConductor::ConduitTopologyGenerator, 'with fhrp (VRRP/HSRP)'
   context 'with redundancy maintained' do
     let(:groups) { separate_groups }
     let(:conduit_name) { 'c_cr1' }
+    let(:conduit_tp_name) { 'ge-0/0/2.0' } # 1:1 group keeps the original tp name
 
     it 'is parsed by netomox topology classes and fhrp is kept as MddoFhrp' do
       fhrp = conduit_tp.attribute.fhrp
@@ -48,6 +49,7 @@ RSpec.describe ModelConductor::ConduitTopologyGenerator, 'with fhrp (VRRP/HSRP)'
   context 'with redundancy not maintained' do
     let(:groups) { collapsed_groups }
     let(:conduit_name) { 'c_cr' }
+    let(:conduit_tp_name) { 'eth2' }
 
     it 'has the virtual address as ip address and no fhrp' do
       expect(conduit_tp.attribute.ip_addrs).to eq %w[192.168.100.1/24]
