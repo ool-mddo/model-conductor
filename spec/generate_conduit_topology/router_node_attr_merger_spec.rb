@@ -40,5 +40,15 @@ RSpec.describe ModelConductor::RouterNodeAttrMerger do
       prefixes = result['prefix'].map { |p| p['prefix'] }
       expect(prefixes).to eq(prefixes.uniq)
     end
+
+    it 'preserves endpoint node-type when the original node is an endpoint' do
+      endpoint_node = {
+        'node-id' => 'host1',
+        'mddo-topology:l3-node-attributes' => { 'node-type' => 'endpoint', 'prefix' => [], 'static-route' => [] }
+      }
+      endpoint_merger = described_class.new(orig_nodes + [endpoint_node])
+      result = endpoint_merger.merge(['host1'], { %w[host1 eth0] => %w[host1 eth0] }, 'host1')
+      expect(result['node-type']).to eq('endpoint')
+    end
   end
 end

@@ -101,6 +101,8 @@ conduit topology 生成時の FW ノード識別は top-level `"flag": ["firewal
 - Firewall ノード (top-level `flag` に `"firewall"` を含む): 全ての元ノードを個別に保持。TP 名・属性はそのまま
 - Router ノード (blueprint でグループ化): 代表ノード 1 つに集約。外部接続 TP のみ eth1, eth2, ... に rename
   - 例外: 元ノード 1 つだけのグループ (endpoint (host) など) は集約しないので、TP 名を rename せず元の名前のまま保持
+    し、layer3 ノードの `node-type` も元ノードのもの (`endpoint` など) を引き継ぐ (`RouterNodeAttrMerger#resolve_node_type`。
+    元ノードが無い/`node-type` が無い場合は `node`)。ただし現状は複数ノードのグループでも先頭の元ノードの `node-type` を使う
   - 例外: `fhrp` (VRRP/HSRP) を持つ **unlinked TP (セグメントに接続していない TP = エッジ)** は、外部 TP の連番に続けて `ethN+1...` として残す
     (目的: エッジセグメントのエンドポイントのデフォルトゲートウェイを変えない)。`FhrpGatewayResolver` が次のように決める:
     - 冗長を維持できる (同じ FHRP グループ `(protocol, group-id, virtual-address)` のメンバーが、blueprint に含まれるノードの範囲で

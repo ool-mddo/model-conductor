@@ -5,6 +5,7 @@ require 'ipaddr'
 module ModelConductor
   # Merges layer3 node attributes for a router conduit node from multiple original nodes.
   # Collects surviving prefixes (those connected to external TPs) and static routes.
+  # node-type is inherited from the (first) original node (e.g. 'endpoint'), 'node' if not found.
   class RouterNodeAttrMerger
     TP_KEY = 'ietf-network-topology:termination-point'
     L3_NODE_ATTR = 'mddo-topology:l3-node-attributes'
@@ -25,10 +26,19 @@ module ModelConductor
       original_node_names.each do |node_name|
         collect_node_attrs(node_name, tp_mapping, conduit_name, all_prefixes, all_static_routes)
       end
-      { 'node-type' => 'node', 'prefix' => all_prefixes, 'static-route' => all_static_routes, 'flag' => [] }
+      build_node_attrs(resolve_node_type(original_node_names), all_prefixes, all_static_routes)
     end
 
     private
+
+    def build_node_attrs(node_type, prefixes, static_routes)
+      { 'node-type' => node_type, 'prefix' => prefixes, 'static-route' => static_routes, 'flag' => [] }
+    end
+
+    def resolve_node_type(original_node_names)
+      orig_node = @orig_nodes.find { |n| n['node-id'] == original_node_names.first }
+      orig_node&.dig(L3_NODE_ATTR, 'node-type') || 'node'
+    end
 
     def collect_node_attrs(node_name, tp_mapping, conduit_name, all_prefixes, all_static_routes)
       orig_node = @orig_nodes.find { |n| n['node-id'] == node_name }
