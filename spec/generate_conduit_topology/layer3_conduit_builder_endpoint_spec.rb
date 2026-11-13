@@ -5,7 +5,8 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with an endpoint on the fh
   let(:layer3) do
     nw = fhrp_layer3
     host_tp = { 'tp-id' => 'eth0', l3_attr => { 'ip-address' => %w[192.168.100.10/24] } }
-    nw['node'] << { 'node-id' => 'host1', tp_key => [host_tp] }
+    host_node_attr = { 'node-type' => 'endpoint', 'prefix' => [], 'static-route' => [], 'flag' => [] }
+    nw['node'] << { 'node-id' => 'host1', tp_key => [host_tp], 'mddo-topology:l3-node-attributes' => host_node_attr }
     nw['node'] << { 'node-id' => seg_name, tp_key => (%w[cr1 cr2 cr3].map { |n| { 'tp-id' => "#{n}_ge-0/0/2.0" } } +
                                                     [{ 'tp-id' => 'host1_eth0' }]) }
     nw['ietf-network-topology:link'] += segment_links
@@ -47,9 +48,10 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with an endpoint on the fh
       expect(segment_tp_ids).to eq %w[c_cr_eth2 host1_eth0]
     end
 
-    it 'keeps the original tp name of the group of a single original node (endpoint)' do
+    it 'keeps the original tp name and endpoint node-type of the group of a single original node (endpoint)' do
       expect(conduit_tp_names(conduit_layer3, 'host1')).to eq %w[eth0]
       expect(tp_mapping[%w[host1 eth0]]).to eq %w[host1 eth0]
+      expect(conduit_node(conduit_layer3, 'host1').dig('mddo-topology:l3-node-attributes', 'node-type')).to eq 'endpoint'
     end
 
     it 'describes the tps by the facing node (the segment has two endpoints)' do

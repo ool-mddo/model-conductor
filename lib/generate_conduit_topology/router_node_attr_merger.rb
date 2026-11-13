@@ -25,10 +25,20 @@ module ModelConductor
       original_node_names.each do |node_name|
         collect_node_attrs(node_name, tp_mapping, conduit_name, all_prefixes, all_static_routes)
       end
-      { 'node-type' => 'node', 'prefix' => all_prefixes, 'static-route' => all_static_routes, 'flag' => [] }
+      {
+        'node-type' => resolve_node_type(original_node_names),
+        'prefix' => all_prefixes,
+        'static-route' => all_static_routes,
+        'flag' => []
+      }
     end
 
     private
+
+    def resolve_node_type(original_node_names)
+      orig_node = @orig_nodes.find { |n| n['node-id'] == original_node_names.first }
+      orig_node&.dig(L3_NODE_ATTR, 'node-type') || 'node'
+    end
 
     def collect_node_attrs(node_name, tp_mapping, conduit_name, all_prefixes, all_static_routes)
       orig_node = @orig_nodes.find { |n| n['node-id'] == node_name }
