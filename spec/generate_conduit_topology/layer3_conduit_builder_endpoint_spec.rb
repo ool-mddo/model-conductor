@@ -51,7 +51,8 @@ RSpec.describe ModelConductor::Layer3ConduitBuilder, 'with an endpoint on the fh
     it 'keeps the original tp name and endpoint node-type of the group of a single original node (endpoint)' do
       expect(conduit_tp_names(conduit_layer3, 'host1')).to eq %w[eth0]
       expect(tp_mapping[%w[host1 eth0]]).to eq %w[host1 eth0]
-      expect(conduit_node(conduit_layer3, 'host1').dig('mddo-topology:l3-node-attributes', 'node-type')).to eq 'endpoint'
+      host_node = conduit_node(conduit_layer3, 'host1')
+      expect(host_node.dig('mddo-topology:l3-node-attributes', 'node-type')).to eq 'endpoint'
     end
 
     it 'describes the tps by the facing node (the segment has two endpoints)' do
